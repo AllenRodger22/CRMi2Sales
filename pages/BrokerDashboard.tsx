@@ -1,0 +1,344 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import KpiCard from '../components/KpiCard';
+import ClientTable from '../components/ClientTable';
+import { PlusIcon, UploadIcon, DownloadIcon } from '../components/Icons';
+import ClientFormModal from '../components/AddClientModal';
+import ImportCsvModal from '../components/ImportCsvModal';
+import DateRangePickerModal from '../components/DateRangePickerModal';
+import { ClientStatus, Client, Kpi, ProductivityData, InteractionType, FollowUpState } from '../types';
+import SearchBar from '../components/SearchBar';
+import FiltersBar from '../components/FiltersBar';
+import * as api from '../services/mockApi';
+
+const productivityKpiColors: Record<keyof ProductivityData['kpis'], string> = {
+    ligacoes: 'text-white',
+    ce: 'text-white',
+    tratativas: 'text-white',
+    documentacao: 'text-white',
+    vendas: 'text-white',
+};
+
+const productivityKpiTitles: Record<keyof ProductivityData['kpis'], string> = {
+    ligacoes: 'Ligações',
+    ce: 'Contatos Efetivos',
+    tratativas: 'Tratativas',
+    documentacao: 'Doc Completa',
+    vendas: 'Vendas',
+};
+
+const getInitialDateRange = () => {
+    const start = new Date();
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+};
+
+const formatDateRange = (range: { start: Date; end: Date }) => {
+    const startStr = range.start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const endStr = range.end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return `${startStr} - ${endStr}`;
+};
+
+const formatDateForApi = (date: Date) => {
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD
+};
+
+
+const BrokerDashboard: React.FC = () => {
+    const [clients, setClients] = useState<Client[]>([]);
+    const [brokerKpis, setBrokerKpis] = useState<Kpi[]>([]);
+    const [productivityData, setProductivityData] = useState<ProductivityData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [activeFilter, setActiveFilter] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [dateRange, setDateRange] = useState(getInitialDateRange());
+    
+    const fetchClients = async () => {
+        setLoading(true);
+        try {
+            const clientsRes = await api.getClients({ searchQuery, status: statusFilter });
+            setClients(clientsRes);
+        } catch (err) {
+            console.error("Failed to fetch client data", err);
+            setClients([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    useEffect(() => {
+        const fetchStaticKpis = async () => {
+            try {
+                 const kpisRes = await api.getBrokerKpis();
+                 const kpisArray: Kpi[] = [
+                    { title: 'Follow-up Atrasado', value: kpisRes.followUpAtrasado || 0, color: 'text-white' },
+                    { title: 'Follow-up Futuro', value: kpisRes.leadsEmTratativa || 0, color: 'text-white' },
+                    { title: 'Primeiro Atendimento', value: kpisRes.leadsPrimeiroAtendimento || 0, color: 'text-white' },
+                    { title: 'Total de leads', value: kpisRes.totalLeads || 0, color: 'text-white' },
+                ];
+                setBrokerKpis(kpisArray);
+            } catch (err) {
+                 console.error("Failed to fetch kpi data", err);
+                 setBrokerKpis([]);
+            }
+        };
+        
+        fetchClients();
+        fetchStaticKpis();
+    }, [searchQuery, statusFilter]);
+    
+    useEffect(() => {
+        const fetchProductivity = async () => {
+            try {
+                const apiParams = {
+                    startDate: formatDateForApi(dateRange.start),
+                    endDate: formatDateForApi(dateRange.end),
+                };
+                const productivityRes = await api.getProductivityData(apiParams);
+                setProductivityData(productivityRes);
+            } catch (err) {
+                console.error("Failed to fetch productivity data", err);
+                setProductivityData(null);
+            }
+        };
+
+        fetchProductivity();
+    }, [dateRange]);
+
+
+    const handleAddClient = async (clientData: Omit<Client, 'id' | 'interactions'>) => {
+        try {
+            await api.createClient({ ...clientData, status: ClientStatus.FIRST_CONTACT });
+            setIsAddClientModalOpen(false);
+            // Re-fetch by clearing filters, which triggers the useEffect
+            setSearchQuery('');
+            setStatusFilter('');
+        } catch (err) {
+            alert('Falha ao adicionar cliente.');
+            console.error(err);
+        }
+    };
+    
+    const updateClientDetails = async (clientId: string, details: Partial<Client>) => {
+         try {
+            await api.updateClient(clientId, details);
+            fetchClients(); // Refetch to ensure data consistency
+        } catch (err) {
+            alert('Falha ao atualizar cliente.');
+            console.error(err);
+        }
+    };
+
+    const handleClientStatusChange = async (clientId: string, fromStatus: ClientStatus, toStatus: ClientStatus) => {
+        try {
+            await api.createInteraction(clientId, {
+                type: InteractionType.STATUS_CHANGE,
+                observation: `Status alterado de '${fromStatus}' para '${toStatus}'`,
+                from_status: fromStatus,
+                to_status: toStatus,
+            });
+            fetchClients(); // Refetch to see the change in the table
+        } catch (err) {
+            alert('Falha ao mudar status do cliente.');
+            console.error(err);
+        }
+    };
+
+
+    const deleteClient = async (clientId: string) => {
+         if (window.confirm('Tem certeza que deseja excluir este cliente permanentemente?')) {
+            try {
+                await api.deleteClientApi(clientId);
+                // Re-fetch by clearing filters
+                setSearchQuery('');
+                setStatusFilter('');
+            } catch (err) {
+                alert('Falha ao excluir cliente.');
+                console.error(err);
+            }
+        }
+    };
+
+    const handleImportClients = async (file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const result = await api.importClients(formData);
+            alert(`${result.imported} clientes importados, ${result.skipped} ignorados.`);
+            setIsImportModalOpen(false);
+            // Re-fetch by clearing filters
+            setSearchQuery('');
+            setStatusFilter('');
+        } catch (err) {
+            alert('Falha ao importar clientes.');
+            console.error(err);
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            const blob = await api.exportClients();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'clientes_export.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            alert('Falha ao exportar clientes.');
+            console.error(err);
+        }
+    };
+
+    const handleFilterClick = (kpiTitle: string) => {
+        setActiveFilter(prev => prev === kpiTitle ? null : kpiTitle);
+    };
+    
+    const filteredClients = useMemo(() => {
+        // Search and status filtering is now done by the backend.
+        // This hook only applies the top-level KPI card filters.
+        let results = clients;
+        if (!activeFilter) return results;
+
+        switch (activeFilter) {
+            case 'Follow-up Atrasado':
+                return results.filter(c => c.followUpState === FollowUpState.DELAYED);
+            case 'Follow-up Futuro':
+                return results.filter(c => c.followUpState === FollowUpState.ACTIVE);
+            case 'Primeiro Atendimento':
+                return results.filter(c => c.status === ClientStatus.FIRST_CONTACT);
+            case 'Total de leads':
+                return results;
+            default:
+                return results;
+        }
+    }, [clients, activeFilter]);
+
+    const allStatusOptions = Object.values(ClientStatus).filter(status =>
+        status !== ClientStatus.CADENCE &&
+        status !== ClientStatus.DOCS &&
+        status !== ClientStatus.SALE
+    );
+
+    return (
+        <div className="p-4 sm:p-6 lg:p-8">
+            <div className="space-y-8">
+                <h1 className="text-3xl font-bold text-white">Dashboard do Corretor</h1>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {brokerKpis.map(kpi => (
+                        <KpiCard 
+                            key={kpi.title} 
+                            title={kpi.title} 
+                            value={kpi.value} 
+                            color={kpi.color}
+                            onClick={() => handleFilterClick(kpi.title)}
+                            isActive={activeFilter === kpi.title}
+                        />
+                    ))}
+                </div>
+
+                <div id="productivity-section">
+                     <h2 className="text-2xl font-bold text-white mb-2">Minha Produtividade</h2>
+                    <FiltersBar 
+                        dateRangeLabel={formatDateRange(dateRange)}
+                        onDateRangeClick={() => setIsDatePickerOpen(true)}
+                    />
+                    {!productivityData ? <div className="text-center p-8">Carregando KPIs...</div> : (
+                        <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
+                            {(Object.keys(productivityData.kpis) as Array<keyof ProductivityData['kpis']>).map(key => (
+                                <div key={key} className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg flex flex-col justify-between h-full">
+                                    <h3 className="text-sm sm:text-base font-bold text-gray-300">{productivityKpiTitles[key]}</h3>
+                                    <p className={`text-3xl sm:text-4xl font-extrabold mt-2 ${productivityKpiColors[key]}`}>
+                                        {productivityData.kpis[key]}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg space-y-4 md:space-y-0 md:flex md:items-center md:justify-between md:gap-4">
+                    <div className="flex-grow">
+                         <SearchBar onSearch={setSearchQuery} />
+                    </div>
+                    <div className="flex-grow md:flex-grow-0">
+                        <select 
+                            value={statusFilter} 
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="w-full py-3 pl-4 pr-10 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        >
+                            <option value="" className="bg-gray-800">Todos os Status</option>
+                            {allStatusOptions.map(status => (
+                                <option key={status} value={status} className="bg-gray-800">{status}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-3">
+                         <button 
+                            onClick={() => setIsImportModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600/50 rounded-lg hover:bg-blue-700/60 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+                        >
+                            <UploadIcon className="w-5 h-5" /> Importar
+                        </button>
+                         <button 
+                            onClick={handleExport}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600/50 rounded-lg hover:bg-green-700/60 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+                        >
+                            <DownloadIcon className="w-5 h-5" /> Exportar
+                        </button>
+                    </div>
+                </div>
+
+                <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                    <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                        <h2 className="text-xl font-bold text-white">Lista de Clientes</h2>
+                        <button 
+                            onClick={() => setIsAddClientModalOpen(true)}
+                            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-orange-600/80 rounded-lg hover:bg-orange-700/80 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+                        >
+                            <PlusIcon className="w-5 h-5" /> Cadastrar Cliente
+                        </button>
+                    </div>
+                    <ClientTable 
+                        clients={filteredClients} 
+                        loading={loading} 
+                        onUpdateClient={updateClientDetails} 
+                        onDeleteClient={deleteClient}
+                        onStatusChange={handleClientStatusChange}
+                    />
+                </div>
+
+                <ClientFormModal 
+                    isOpen={isAddClientModalOpen}
+                    onClose={() => setIsAddClientModalOpen(false)}
+                    onSubmit={handleAddClient}
+                />
+                <ImportCsvModal
+                    isOpen={isImportModalOpen}
+                    onClose={() => setIsImportModalOpen(false)}
+                    onImport={handleImportClients}
+                />
+                 <DateRangePickerModal
+                    isOpen={isDatePickerOpen}
+                    onClose={() => setIsDatePickerOpen(false)}
+                    initialRange={dateRange}
+                    onApply={(newRange) => {
+                        setDateRange(newRange);
+                        setIsDatePickerOpen(false);
+                    }}
+                />
+            </div>
+        </div>
+    );
+};
+
+export default BrokerDashboard;
