@@ -50,10 +50,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setIsPasswordRecovery(false);
           const profile = await sessionService.getAndEnsureUserProfile();
           setUser(profile);
-          
-          if (event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {
-              window.location.hash = '/';
-          }
         } else {
           setIsPasswordRecovery(false);
           setUser(null);

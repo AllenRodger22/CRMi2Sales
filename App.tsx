@@ -55,10 +55,10 @@ const Router: React.FC = () => {
   return (
     <ReactRouterDOM.HashRouter>
       <ReactRouterDOM.Routes>
-        <ReactRouterDOM.Route path="/login" element={!user ? <LoginPage /> : <ReactRouterDOM.Navigate to="/" />} />
-        <ReactRouterDOM.Route path="/register" element={!user ? <RegisterPage /> : <ReactRouterDOM.Navigate to="/" />} />
+        <ReactRouterDOM.Route path="/login" element={!user ? <LoginPage /> : <ReactRouterDOM.Navigate to="/dashboard" />} />
+        <ReactRouterDOM.Route path="/register" element={!user ? <RegisterPage /> : <ReactRouterDOM.Navigate to="/dashboard" />} />
         <ReactRouterDOM.Route 
-          path="/*"
+          path="/dashboard/*"
           element={
             <ProtectedRoute>
               <DashboardLayout>
@@ -67,6 +67,8 @@ const Router: React.FC = () => {
             </ProtectedRoute>
           } 
         />
+        <ReactRouterDOM.Route path="/" element={<ReactRouterDOM.Navigate to={user ? "/dashboard" : "/login"} replace />} />
+        <ReactRouterDOM.Route path="*" element={<ReactRouterDOM.Navigate to="/" replace />} />
       </ReactRouterDOM.Routes>
     </ReactRouterDOM.HashRouter>
   );
