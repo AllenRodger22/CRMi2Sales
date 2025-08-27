@@ -39,7 +39,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     // This listener handles all authentication state changes.
-    // FIX: The supabase client is not exported from `authService`. It must be imported directly from `supabaseClient`.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       // Handle password recovery flow
       if (event === 'PASSWORD_RECOVERY') {
@@ -51,6 +50,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Fetch or create the user's profile from our public.profiles table.
         const profile = await sessionService.getAndEnsureUserProfile();
         setUser(profile);
+        
+        // After an OAuth login, the user is redirected back with the token in the URL hash.
+        // Once the session is confirmed ('SIGNED_IN' event), we clean the URL.
+        if (event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {
+            // Using HashRouter, so we navigate to the root hash path.
+            window.location.hash = '/';
+        }
+
       } else {
         // When a user logs out or the session expires.
         setIsPasswordRecovery(false);

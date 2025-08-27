@@ -13,14 +13,12 @@ export async function login(email: string, password: string) {
 
 /**
  * Signs in the user using Google OAuth with a redirect flow.
+ * The redirect URL is now managed solely by the 'Site URL' setting in the Supabase dashboard
+ * under Authentication > URL Configuration.
  */
 export async function loginWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: {
-      // This will redirect the user to the specified URL after a successful login.
-      redirectTo: window.location.origin,
-    },
   });
   if (error) throw error;
 }
@@ -57,11 +55,10 @@ export async function register(
 
 /**
  * Sends a password reset email to the user.
+ * The redirect URL is now managed solely by the 'Site URL' setting in the Supabase dashboard.
  */
 export async function sendPasswordResetEmail(email: string) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin, // Redirect to the app's base URL
-    });
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
     if (error) throw error;
 }
 
