@@ -30,8 +30,6 @@ const AppContent: React.FC = () => {
   useAuthBoot();
   const { session, user, isPasswordRecovery } = useAuth();
 
-  // The global loader is removed from here as RequireAuth handles it for protected routes.
-  // We need a check for the password recovery flow before any other rendering.
   if (isPasswordRecovery) {
     return (
       <ReactRouterDOM.Routes>
@@ -64,9 +62,32 @@ const AppContent: React.FC = () => {
 
 const DashboardRoutes: React.FC = () => {
   const { user } = useAuth();
+  const navigate = ReactRouterDOM.useNavigate();
+  const location = ReactRouterDOM.useLocation();
 
-  // If RequireAuth has passed, we have a session.
-  // If user is null here, it means the profile fetch is either in progress or has failed.
+  // Redirect from `/dashboard` root to the user's role-specific dashboard page.
+  React.useEffect(() => {
+    if (user && (location.pathname === '/dashboard' || location.pathname === '/dashboard/')) {
+      let targetPath: string;
+      switch (user.role) {
+        case Role.BROKER:
+          targetPath = '/dashboard/broker';
+          break;
+        case Role.MANAGER:
+          targetPath = '/dashboard/manager';
+          break;
+        case Role.ADMIN:
+          targetPath = '/dashboard/admin';
+          break;
+        default:
+          // Fallback for unknown roles, redirect to login
+          targetPath = '/';
+          break;
+      }
+      navigate(targetPath, { replace: true });
+    }
+  }, [user, location.pathname, navigate]);
+
   if (!user) {
     return (
       <div className="p-8 text-center">
@@ -79,34 +100,61 @@ const DashboardRoutes: React.FC = () => {
     );
   }
 
-  const getDashboardForRole = () => {
-    switch (user.role) {
-      case Role.BROKER:
-        return <BrokerDashboard />;
-      case Role.MANAGER:
-        return <ManagerDashboard />;
-      case Role.ADMIN:
-        return <AdminDashboard />;
-      default:
-        // FIX: Added a fallback UI for unknown roles.
-        return (
-            <div className="p-8 text-center">
-              <h2 className="text-xl font-bold text-red-400">Papel de Usuário Desconhecido</h2>
-              <p className="mt-2 text-gray-300">
-                Não foi possível determinar sua página inicial. Por favor, entre em contato com o suporte.
-              </p>
-            </div>
-        );
+  // A simple component to protect routes. If the user's role is not in the allowed list,
+  // it redirects them to their main dashboard page (which will then redirect correctly).
+  const ProtectedRoute: React.FC<{ allowedRoles: Role[]; children: React.ReactNode }> = ({ allowedRoles, children }) => {
+    if (!allowedRoles.includes(user.role)) {
+      return <ReactRouterDOM.Navigate to="/dashboard" replace />;
     }
+    return <>{children}</>;
   };
-
+  
   return (
       <ReactRouterDOM.Routes>
-          <ReactRouterDOM.Route path="/" element={getDashboardForRole()} />
+          <ReactRouterDOM.Route 
+            path="broker" 
+            element={
+              <ProtectedRoute allowedRoles={[Role.BROKER]}>
+                <BrokerDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <ReactRouterDOM.Route 
+            path="manager" 
+            element={
+              <ProtectedRoute allowedRoles={[Role.MANAGER, Role.ADMIN]}>
+                <ManagerDashboard />
+              </ProtectedRoute>
+            } 
+          />
+           <ReactRouterDOM.Route 
+            path="admin" 
+            element={
+              <ProtectedRoute allowedRoles={[Role.ADMIN]}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+
           <ReactRouterDOM.Route path="client/:clientId" element={<ClientDetail />} />
+
+          {/* This route handles the base /dashboard path, showing a loading message while redirecting. */}
+          <ReactRouterDOM.Route path="/" element={<div className="p-8 text-center">Redirecionando...</div>} />
+
+          {/* A fallback for any unknown paths under /dashboard/* to prevent blank pages. */}
+          <ReactRouterDOM.Route 
+            path="*" 
+            element={
+              <div className="p-8 text-center">
+                <h2 className="text-xl font-bold text-red-400">Página Não Encontrada</h2>
+                <p className="mt-2 text-gray-300">
+                  A página que você está procurando não existe.
+                </p>
+              </div>
+            } 
+          />
       </ReactRouterDOM.Routes>
   );
 };
 
-// FIX: Added default export to resolve module loading error.
 export default App;
