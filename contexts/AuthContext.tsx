@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Role } from '../types';
 import * as authService from '../services/auth';
 import * as profileService from '../services/profile';
@@ -46,6 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [isProfileSetupRequired, setIsProfileSetupRequired] = useState(false);
   const [tempSessionUser, setTempSessionUser] = useState<SupabaseUser | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -71,21 +73,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsProfileSetupRequired(true);
         }
         
+        // After processing the session, if the URL contains OAuth tokens,
+        // navigate to the root to clean up the URL bar.
         if (window.location.hash.includes('access_token')) {
-            window.location.hash = '/';
+            navigate('/', { replace: true });
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsPasswordRecovery(false);
         setIsProfileSetupRequired(false);
         setTempSessionUser(null);
+        navigate('/login', { replace: true });
       }
       setIsInitializing(false);
       setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const completeUserProfile = async (name: string, role: Role) => {
     if (!tempSessionUser) throw new Error("No temporary session found to create profile.");
@@ -183,7 +188,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     await authService.logout();
-    // onAuthStateChange('SIGNED_OUT') will handle state cleanup.
+    // onAuthStateChange('SIGNED_OUT') will handle state cleanup and navigation.
   };
 
   if (isInitializing) {
