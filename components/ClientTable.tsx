@@ -1,10 +1,11 @@
 
 
+
 import React from 'react';
 // FIX: Changed to namespace import to fix module resolution issues.
 import * as ReactRouterDOM from 'react-router-dom';
 import { Client, Role, ClientStatus } from '../types';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../auth';
 import Tag from './Tag';
 import { ArchiveIcon, TrashIcon } from './Icons';
 

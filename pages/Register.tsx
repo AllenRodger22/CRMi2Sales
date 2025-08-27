@@ -1,9 +1,10 @@
 
 
+
 import React, { useState } from 'react';
 // FIX: Changed to namespace import to fix module resolution issues.
 import * as ReactRouterDOM from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../auth';
 import { Role } from '../types';
 
 const RegisterPage: React.FC = () => {
@@ -11,7 +12,6 @@ const RegisterPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState<Role>(Role.BROKER);
-    // FIX: The AuthContext provides a 'loading' property, not 'isLoading'.
     const { register, loading } = useAuth();
     const [localError, setLocalError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -49,7 +49,7 @@ const RegisterPage: React.FC = () => {
         }
     };
 
-    const inputClass = "appearance-none relative block w-full px-3 py-3 bg-white/5 border border-white/20 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm";
+    const inputClass = "appearance-none relative block w-full px-3 py-3 bg-white/5 border border-white/20 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text/sm";
 
     return (
         <div className="flex items-center justify-center min-h-screen p-4">

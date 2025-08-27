@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import KpiCard from '../components/KpiCard';
 import ClientTable from '../components/ClientTable';
@@ -11,7 +12,7 @@ import FiltersBar from '../components/FiltersBar';
 import * as clientApi from '../services/clients';
 import * as analyticsApi from '../services/analytics';
 import * as interactionApi from '../services/interactions';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../auth';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 

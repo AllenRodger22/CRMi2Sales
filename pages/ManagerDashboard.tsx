@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import Funnel from '../components/Funnel';
 import LineChart from '../components/LineChart';
@@ -6,7 +7,7 @@ import FiltersBar from '../components/FiltersBar';
 import Tabs from '../components/Tabs';
 import { ProductivityData, FunnelAnalyticsData } from '../types';
 import * as analyticsApi from '../services/analytics';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../auth';
 import DateRangePickerModal from '../components/DateRangePickerModal';
 
 const formatCurrency = (value: number) => {

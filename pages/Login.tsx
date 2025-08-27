@@ -1,12 +1,12 @@
+
 import React, { useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../auth';
 import { GoogleIcon } from '../components/Icons'; // Import Google Icon
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  // FIX: The AuthContext provides a 'loading' property, not 'isLoading'.
   const { login, loginWithGoogle, sendPasswordResetEmail, loading } = useAuth();
   const [localError, setLocalError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -72,12 +72,12 @@ const LoginPage: React.FC = () => {
       <form className="mt-8 space-y-4" onSubmit={handleLogin}>
         <input
           id="email-address" name="email" type="email" autoComplete="email" required
-          className="appearance-none relative block w-full px-3 py-3 bg-white/5 border border-white/20 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+          className="appearance-none relative block w-full px-3 py-3 bg-white/5 border border-white/20 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text/sm"
           placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
         />
         <input
           id="password" name="password" type="password" autoComplete="current-password" required
-          className="appearance-none relative block w-full px-3 py-3 bg-white/5 border border-white/20 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+          className="appearance-none relative block w-full px-3 py-3 bg-white/5 border border-white/20 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text/sm"
           placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)}
         />
         <div className="flex items-center justify-end text-sm">
@@ -118,7 +118,7 @@ const LoginPage: React.FC = () => {
       <form className="mt-8 space-y-6" onSubmit={handlePasswordReset}>
         <input
           id="email-address" name="email" type="email" autoComplete="email" required
-          className="appearance-none relative block w-full px-3 py-3 bg-white/5 border border-white/20 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+          className="appearance-none relative block w-full px-3 py-3 bg-white/5 border border-white/20 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text/sm"
           placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
         />
         <button type="submit" disabled={loading || !!successMessage} className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-orange-800 disabled:cursor-not-allowed transition">

@@ -1,3 +1,4 @@
+
 // services/auth.ts
 import { supabase } from './supabaseClient';
 import { Role } from '../types';
@@ -13,13 +14,13 @@ export async function login(email: string, password: string) {
 
 /**
  * Signs in the user using Google OAuth with a redirect flow.
- * An explicit redirectTo is provided to ensure consistent behavior, especially on mobile.
+ * An explicit redirectTo is provided for HashRouter compatibility.
  */
 export async function loginWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/`,
+      redirectTo: `${window.location.origin}/#/`,
       queryParams: { prompt: 'select_account' }
     }
   });
