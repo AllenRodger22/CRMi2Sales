@@ -1,6 +1,5 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from './services/supabaseClient';
 import { getAndEnsureUserProfile } from './services/session';
 import { User, Role } from './types';
@@ -13,7 +12,6 @@ interface AuthContextType {
   state: AuthState;
   user: User | null;
   session: Session | null;
-  login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   register: (name: string, email: string, password: string, role: Role) => Promise<{ confirmationSent: boolean }>;
   logout: () => void;
@@ -41,141 +39,101 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [apiLoading, setApiLoading] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        try {
-          const profile = await getAndEnsureUserProfile();
-          setUser(profile);
-          setState('authed');
-        } catch (e) {
-          console.error("Failed to fetch profile on initial load", e);
-          setUser(null);
-          setState('guest');
-        }
-      } else {
-        setUser(null);
-        setState('guest');
-      }
-    });
+    let mounted = true;
 
+    // This listener is the single source of truth for the auth state.
+    // It handles initial session, sign in, sign out, and token refresh.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.debug('[auth]', event, !!session);
+        if (!mounted) return;
 
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsPasswordRecovery(true);
-        setState('guest');
-        setUser(null);
-        setSession(null);
-        return;
-      }
-      
-      if (isPasswordRecovery) setIsPasswordRecovery(false);
-
-      if (event === 'SIGNED_IN' && session?.user) {
-        setSession(session);
-        setState('loading');
-        try {
-          const profile = await getAndEnsureUserProfile();
-          setUser(profile);
-          setState('authed');
-          history.replaceState(null, '', window.location.origin + window.location.pathname + window.location.search);
-        } catch (e) {
-          console.error('Sign in failed during profile fetch', e);
-          setUser(null);
-          setState('guest');
-          setError('Falha ao carregar perfil do usuário.');
+        // Special flow for password recovery
+        if (event === 'PASSWORD_RECOVERY') {
+            setIsPasswordRecovery(true);
+            setState('guest');
+            setUser(null);
+            setSession(null);
+            return; // Show the update password page
         }
-      } else if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        setState('guest');
-        setIsPasswordRecovery(false);
-        navigate('/login', { replace: true });
-      }
+        // Exit recovery mode on any other event, except after password has been updated
+        if (isPasswordRecovery && event !== 'USER_UPDATED') {
+            setIsPasswordRecovery(false);
+        }
+
+        if (session?.user) {
+            try {
+                // Fetch the user's profile from our `profiles` table.
+                // This is crucial for getting app-specific data like `role`.
+                const profile = await getAndEnsureUserProfile();
+                setUser(profile);
+                setSession(session);
+                setState('authed');
+
+                // On successful sign-in, redirect to the dashboard.
+                if (event === 'SIGNED_IN') {
+                    // Use a timeout to allow the session to be fully set in Supabase client
+                    setTimeout(() => (window.location.hash = '#/dashboard'), 0);
+                }
+            } catch(e) {
+                console.error("Auth Error: Failed to fetch user profile.", e);
+                // If profile fetch fails, treat the user as a guest to prevent access.
+                setUser(null);
+                setSession(null);
+                setState('guest');
+            }
+        } else {
+            // No session or user, so they are a guest.
+            setUser(null);
+            setSession(null);
+            setState('guest');
+             if (event === 'SIGNED_OUT') {
+                window.location.hash = '#/login';
+            }
+        }
     });
 
-    return () => subscription.unsubscribe();
-  }, [navigate, isPasswordRecovery]);
+    // Initial check to transition from 'loading' state.
+    // The 'INITIAL_SESSION' event from the listener above will handle the final state.
+    supabase.auth.getSession().then(({ data }) => {
+        if (mounted && state === 'loading' && !data.session) {
+            setState('guest');
+        }
+    });
 
-  const login = async (email: string, password: string) => {
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [isPasswordRecovery, state]);
+
+  // Wrapper functions to expose auth services to components
+  const performApiCall = async (serviceCall: Function, ...args: any[]) => {
     setApiLoading(true);
     setError(null);
     try {
-      await authService.login(email, password);
+      return await serviceCall(...args);
     } catch (err: any) {
-      setError(err.message || 'Failed to login');
+      setError(err.message);
       throw err;
     } finally {
       setApiLoading(false);
     }
   };
 
-  const loginWithGoogle = async () => {
-    setApiLoading(true);
-    setError(null);
-    try {
-        await authService.loginWithGoogle();
-    } catch (err: any) {
-        setError(err.message || 'Failed to login with Google');
-        throw err;
-    } finally {
-      setApiLoading(false);
-    }
-  };
-
-  const register = async (name: string, email: string, password: string, role: Role) => {
-    setApiLoading(true);
-    setError(null);
-    try {
-      return await authService.register({ name, email, password, role });
-    } catch (err: any) {
-       setError(err.message || 'Failed to register');
-       throw err;
-    } finally {
-        setApiLoading(false);
-    }
-  };
-  
-  const sendPasswordResetEmail = async (email: string) => {
-    setApiLoading(true);
-    setError(null);
-    try {
-        await authService.sendPasswordResetEmail(email);
-    } catch (err: any) {
-        setError(err.message || 'Failed to send reset email');
-        throw err;
-    } finally {
-        setApiLoading(false);
-    }
-  };
-  
+  const loginWithGoogle = () => performApiCall(authService.loginWithGoogle);
+  const register = (name: string, email: string, password: string, role: Role) => performApiCall(authService.register, { name, email, password, role });
+  const sendPasswordResetEmail = (email: string) => performApiCall(authService.sendPasswordResetEmail, email);
   const updatePassword = async (password: string) => {
-     setApiLoading(true);
-     setError(null);
-     try {
-       await authService.updatePassword(password);
-       setIsPasswordRecovery(false);
-     } catch (err: any) {
-        setError(err.message || 'Failed to update password');
-        throw err;
-     } finally {
-         setApiLoading(false);
-     }
+    await performApiCall(authService.updatePassword, password);
+    setIsPasswordRecovery(false);
   };
-
-  const logout = async () => {
-    await authService.logout();
-  };
-
+  const logout = () => authService.logout();
+  
   const value = {
     state,
     user,
     session,
-    login,
     loginWithGoogle,
     register,
     logout,

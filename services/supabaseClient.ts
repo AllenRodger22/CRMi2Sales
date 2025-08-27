@@ -5,23 +5,16 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = 'https://pahyskuhfgequzsvafmq.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhaHlza3VoZmdlcXV6c3ZhZm1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyODU4OTcsImV4cCI6MjA3MTg2MTg5N30.ZA9xm4JI1wXIbLsgm0Ve1vuFqyryhEE3f0HzTNvka4Q';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  // This check is kept as a safeguard but should not be triggered with hardcoded values.
-  throw new Error("Supabase URL and Anon Key must be provided.");
-}
-
 /**
- * Supabase client configured for OAuth with PKCE flow.
- * - flowType: 'pkce' is the modern, recommended flow for SPAs.
- * - detectSessionInUrl: Reads the auth code from the URL query parameters.
+ * Supabase client configured for robust session handling.
  * - persistSession: Caches the session in localStorage.
  * - autoRefreshToken: Keeps the user logged in.
+ * - flowType: 'pkce' is set for the Google OAuth flow; it does not affect email/password login.
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    flowType: 'pkce',
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    flowType: 'pkce',
   },
 });

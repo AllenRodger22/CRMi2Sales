@@ -1,22 +1,22 @@
 
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 
 export default function RouteGuard({ children }: { children: JSX.Element }) {
   const { state } = useAuth();
-  const navigate = useNavigate();
 
   useEffect(() => {
+    // Only redirect when we are certain the user is a guest.
+    // This prevents redirection while the session is still being loaded.
     if (state === 'guest') {
-      navigate('/login', { replace: true });
+      window.location.hash = '#/login';
     }
-  }, [state, navigate]);
+  }, [state]);
 
+  // Do not render anything until the user is authenticated.
   if (state !== 'authed') {
-    // Return null while the redirect is happening or if the state is not authenticated.
     return null;
   }
-
+  
   return children;
 }
