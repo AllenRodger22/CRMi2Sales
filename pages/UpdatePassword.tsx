@@ -4,7 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 const UpdatePasswordPage: React.FC = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const { updatePassword, logout, isLoading } = useAuth();
+    // FIX: The AuthContext provides a 'loading' property, not 'isLoading'.
+    const { updatePassword, logout, loading } = useAuth();
     const [localError, setLocalError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -70,10 +71,10 @@ const UpdatePasswordPage: React.FC = () => {
                         />
                         <button
                             type="submit"
-                            disabled={isLoading}
+                            disabled={loading}
                             className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-orange-800 disabled:cursor-not-allowed transition"
                         >
-                            {isLoading ? 'Atualizando...' : 'Atualizar Senha'}
+                            {loading ? 'Atualizando...' : 'Atualizar Senha'}
                         </button>
                         {localError && <p className="text-sm text-red-400 text-center">{localError}</p>}
                     </form>

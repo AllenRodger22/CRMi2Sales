@@ -1,95 +1,47 @@
-
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, ReactNode } from 'react';
 import { User, Role } from '../types';
 import * as authService from '../services/auth';
-import * as sessionService from '../services/session';
-import { supabase } from '../services/supabaseClient';
-
-// For debugging purposes, can be turned off in production
-const DEBUG_AUTH = true;
 
 interface AuthContextType {
   user: User | null;
+  setUser: (user: User | null) => void;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   register: (name: string, email: string, password: string, role: Role) => Promise<{ confirmationSent: boolean }>;
   logout: () => void;
-  isLoading: boolean;
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
   error: string | null;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   isPasswordRecovery: boolean;
-  isInitializing: boolean;
+  setIsPasswordRecovery: (isRecovery: boolean) => void;
 }
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
+  setUser: () => {},
   login: async () => {},
   loginWithGoogle: async () => {},
   register: async () => ({ confirmationSent: false }),
   logout: () => {},
-  isLoading: false,
+  loading: true,
+  setLoading: () => {},
   error: null,
   sendPasswordResetEmail: async () => {},
   updatePassword: async () => {},
   isPasswordRecovery: false,
-  isInitializing: true,
+  setIsPasswordRecovery: () => {},
 });
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (DEBUG_AUTH) {
-          console.log(`[Auth State Change] Event: ${event}`, { session, hash: window.location.hash });
-      }
-
-      try {
-        if (event === 'PASSWORD_RECOVERY') {
-          setIsPasswordRecovery(true);
-          setUser(null);
-        } else if (session?.user) {
-          // This handles SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED events.
-          setIsPasswordRecovery(false);
-          
-          // CRITICAL STEP 1: Get user profile and update React state FIRST.
-          // This ensures protected routes will see the user as logged in.
-          const profile = await sessionService.getAndEnsureUserProfile();
-          setUser(profile);
-
-          // CRITICAL STEP 2: Handle the specific post-OAuth redirect case.
-          // This logic runs only once, right after returning from Google.
-          if (event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {
-              if (DEBUG_AUTH) console.log('[Auth] OAuth callback detected. Navigating to dashboard.');
-              
-              // Atomically replace the auth hash with the dashboard route hash.
-              // This prevents an intermediate state where the hash is empty, which
-              // would cause the HashRouter to redirect to the login page.
-              window.location.hash = '/dashboard';
-          }
-        } else {
-          // This handles SIGNED_OUT event or no session found.
-          setIsPasswordRecovery(false);
-          setUser(null);
-        }
-      } catch (e) {
-          console.error("Error during auth state change:", e);
-          setUser(null); // Ensure user is logged out on error
-      } finally {
-          setIsInitializing(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
+    setLoading(true);
     setError(null);
     try {
       await authService.login(email, password);
@@ -98,26 +50,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setError(err.message || 'Failed to login');
       throw err;
     } finally {
-      setIsLoading(false);
+      // setLoading will be managed by the auth state listener
     }
   };
   
   const loginWithGoogle = async () => {
-    setIsLoading(true);
+    setLoading(true);
     setError(null);
     try {
         await authService.loginWithGoogle();
     } catch (err: any) {
         console.error("Google login failed", err);
         setError(err.message || 'Failed to login with Google');
+        setLoading(false);
         throw err;
-    } finally {
-        setIsLoading(false);
     }
   };
 
   const register = async (name: string, email: string, password: string, role: Role) => {
-    setIsLoading(true);
+    setLoading(true);
     setError(null);
     try {
       return await authService.register({ name, email, password, role });
@@ -126,12 +77,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
        setError(err.message || 'Failed to register');
        throw err;
     } finally {
-        setIsLoading(false);
+        setLoading(false);
     }
   };
   
   const sendPasswordResetEmail = async (email: string) => {
-    setIsLoading(true);
+    setLoading(true);
     setError(null);
     try {
         await authService.sendPasswordResetEmail(email);
@@ -140,12 +91,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setError(err.message || 'Failed to send reset email');
         throw err;
     } finally {
-        setIsLoading(false);
+        setLoading(false);
     }
   };
   
   const updatePassword = async (password: string) => {
-     setIsLoading(true);
+     setLoading(true);
      setError(null);
      try {
        await authService.updatePassword(password);
@@ -155,7 +106,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setError(err.message || 'Failed to update password');
         throw err;
      } finally {
-         setIsLoading(false);
+         setLoading(false);
      }
   };
 
@@ -166,7 +117,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading, error, loginWithGoogle, sendPasswordResetEmail, updatePassword, isPasswordRecovery, isInitializing }}>
+    <AuthContext.Provider value={{ 
+        user, setUser, 
+        login, register, logout, 
+        loading, setLoading, 
+        error, loginWithGoogle, 
+        sendPasswordResetEmail, updatePassword, 
+        isPasswordRecovery, setIsPasswordRecovery 
+    }}>
       {children}
     </AuthContext.Provider>
   );

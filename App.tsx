@@ -1,8 +1,10 @@
-
 import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './hooks/useAuth';
+import { useAuthBoot } from './auth/useAuthBoot';
+import { RequireAuth } from './components/RequireAuth';
+
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
 import DashboardLayout from './layouts/DashboardLayout';
@@ -16,78 +18,53 @@ import UpdatePasswordPage from './pages/UpdatePassword';
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <ReactRouterDOM.HashRouter>
+        <AppContent />
+      </ReactRouterDOM.HashRouter>
     </AuthProvider>
   );
 };
 
 const AppContent: React.FC = () => {
-  const { isInitializing } = useAuth();
+  useAuthBoot();
+  const { user, loading, isPasswordRecovery } = useAuth();
 
-  if (isInitializing) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-white text-lg">Carregando sessão...</p>
+        <p className="text-white text-lg">Verificando sessão...</p>
       </div>
+    );
+  }
+
+  if (isPasswordRecovery) {
+    return (
+      <ReactRouterDOM.Routes>
+        <ReactRouterDOM.Route path="*" element={<UpdatePasswordPage />} />
+      </ReactRouterDOM.Routes>
     );
   }
 
   return (
     <div className="min-h-screen text-white font-sans">
-      <Router />
-    </div>
-  );
-};
-
-const Router: React.FC = () => {
-  const { user, isPasswordRecovery } = useAuth();
-
-  if (isPasswordRecovery) {
-    return (
-      <ReactRouterDOM.HashRouter>
-        <ReactRouterDOM.Routes>
-          <ReactRouterDOM.Route path="*" element={<UpdatePasswordPage />} />
-        </ReactRouterDOM.Routes>
-      </ReactRouterDOM.HashRouter>
-    );
-  }
-
-  return (
-    <ReactRouterDOM.HashRouter>
       <ReactRouterDOM.Routes>
-        <ReactRouterDOM.Route path="/login" element={!user ? <LoginPage /> : <ReactRouterDOM.Navigate to="/dashboard" />} />
-        <ReactRouterDOM.Route path="/register" element={!user ? <RegisterPage /> : <ReactRouterDOM.Navigate to="/dashboard" />} />
+        <ReactRouterDOM.Route path="/login" element={!user ? <LoginPage /> : <ReactRouterDOM.Navigate to="/dashboard" replace />} />
+        <ReactRouterDOM.Route path="/register" element={!user ? <RegisterPage /> : <ReactRouterDOM.Navigate to="/dashboard" replace />} />
         <ReactRouterDOM.Route 
           path="/dashboard/*"
           element={
-            <ProtectedRoute>
+            <RequireAuth>
               <DashboardLayout>
                 <DashboardRoutes />
               </DashboardLayout>
-            </ProtectedRoute>
+            </RequireAuth>
           } 
         />
         <ReactRouterDOM.Route path="/" element={<ReactRouterDOM.Navigate to={user ? "/dashboard" : "/login"} replace />} />
         <ReactRouterDOM.Route path="*" element={<ReactRouterDOM.Navigate to="/" replace />} />
       </ReactRouterDOM.Routes>
-    </ReactRouterDOM.HashRouter>
+    </div>
   );
-};
-
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isInitializing } = useAuth();
-
-  // If the authentication state is still being determined, don't render anything.
-  // The parent AppContent component will show a global loading indicator.
-  // This prevents a premature redirect to /login before the session is fully checked.
-  if (isInitializing) {
-    return null;
-  }
-  
-  if (!user) {
-    return <ReactRouterDOM.Navigate to="/login" />;
-  }
-  return <>{children}</>;
 };
 
 const DashboardRoutes: React.FC = () => {
@@ -104,7 +81,8 @@ const DashboardRoutes: React.FC = () => {
       case Role.ADMIN:
         return <AdminDashboard />;
       default:
-        return <ReactRouterDOM.Navigate to="/login" />;
+        // This case should ideally not be reached if auth flow is correct
+        return <ReactRouterDOM.Navigate to="/login" replace />;
     }
   };
 

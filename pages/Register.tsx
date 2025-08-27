@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 // FIX: Changed to namespace import to fix module resolution issues.
 import * as ReactRouterDOM from 'react-router-dom';
@@ -10,7 +11,8 @@ const RegisterPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState<Role>(Role.BROKER);
-    const { register, isLoading } = useAuth();
+    // FIX: The AuthContext provides a 'loading' property, not 'isLoading'.
+    const { register, loading } = useAuth();
     const [localError, setLocalError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     // FIX: Used namespace import.
@@ -109,10 +111,10 @@ const RegisterPage: React.FC = () => {
 
                     <button
                         type="submit"
-                        disabled={isLoading || !!successMessage}
+                        disabled={loading || !!successMessage}
                         className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-orange-800 disabled:cursor-not-allowed transition"
                     >
-                        {isLoading ? 'Registrando...' : 'Registrar'}
+                        {loading ? 'Registrando...' : 'Registrar'}
                     </button>
                     {localError && <p className="text-sm text-red-400 text-center">{localError}</p>}
                     {successMessage && <p className="text-sm text-green-400 text-center">{successMessage}</p>}
