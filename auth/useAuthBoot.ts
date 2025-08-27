@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
-import { ensureProfile } from '../utils/ensureProfile';
 import { getAndEnsureUserProfile } from '../services/session';
 
 export const useAuthBoot = () => {
@@ -33,8 +32,8 @@ export const useAuthBoot = () => {
           } catch(e) {
             console.warn('Failed to get profile on initial session', e);
             setUser(null);
-            setSession(null);
-            // Don't sign out, user might be offline but have a valid session token
+            // DO NOT clear session. Session is valid, only profile fetch failed.
+            // The UI will handle the 'user === null' state gracefully.
           }
         } else {
           setUser(null);
@@ -52,8 +51,9 @@ export const useAuthBoot = () => {
         try {
             const profile = await getAndEnsureUserProfile();
             setUser(profile);
-            // Non-blocking call to also run the frontend upsert, ensuring data consistency.
-            ensureProfile(session.user).catch(console.warn);
+            // The 'getAndEnsureUserProfile' RPC call is now the single source of truth
+            // for creating and retrieving the user profile, making a frontend
+            // upsert redundant and potentially inconsistent.
             
             history.replaceState(null, '', window.location.origin + window.location.pathname + window.location.search);
             navigate('/dashboard', { replace: true });
