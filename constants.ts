@@ -25,3 +25,7 @@ export const FOLLOW_UP_STATE_COLORS: Record<FollowUpState, string> = {
     [FollowUpState.CANCELED]: 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30',
     [FollowUpState.LOST]: 'bg-rose-500/20 text-rose-300 border border-rose-500/30',
 };
+
+// Business logic constants
+export const CADENCE_STATUS = 'Fluxo de Cadência';
+export const PRIMEIRO_AT = 'Primeiro Atendimento';

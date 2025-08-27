@@ -56,10 +56,10 @@ export enum InteractionType {
 export interface Interaction {
   id: string;
   type: InteractionType;
-  date: string;
+  date: string; // Will be created_at from DB
   observation: string;
-  from_status?: ClientStatus;
-  to_status?: ClientStatus;
+  fromStatus?: ClientStatus;
+  toStatus?: ClientStatus;
   substituted?: boolean;
 }
 

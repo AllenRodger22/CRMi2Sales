@@ -5,10 +5,12 @@ import { PlusIcon, UploadIcon, DownloadIcon, ChevronDownIcon } from '../componen
 import ClientFormModal from '../components/AddClientModal';
 import ImportCsvModal from '../components/ImportCsvModal';
 import DateRangePickerModal from '../components/DateRangePickerModal';
-import { ClientStatus, Client, Kpi, ProductivityData, InteractionType, FollowUpState } from '../types';
+import { ClientStatus, Client, Kpi, ProductivityData, InteractionType, FollowUpState, Role } from '../types';
 import SearchBar from '../components/SearchBar';
 import FiltersBar from '../components/FiltersBar';
-import * as api from '../services/mockApi';
+import * as clientApi from '../services/clients';
+import * as analyticsApi from '../services/analytics';
+import * as interactionApi from '../services/interactions';
 import { useAuth } from '../hooks/useAuth';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -68,7 +70,7 @@ const BrokerDashboard: React.FC = () => {
     const fetchClients = async () => {
         setLoading(true);
         try {
-            const clientsRes = await api.getClients({ searchQuery, status: statusFilter });
+            const clientsRes = await clientApi.getAllClients({ q: searchQuery, status: statusFilter });
             setClients(clientsRes);
         } catch (err) {
             console.error("Failed to fetch client data", err);
@@ -79,9 +81,11 @@ const BrokerDashboard: React.FC = () => {
     };
     
     useEffect(() => {
+        if (!user) return;
+        
         const fetchStaticKpis = async () => {
             try {
-                 const kpisRes = await api.getBrokerKpis();
+                 const kpisRes = await analyticsApi.getBrokerKpis(user.id);
                  const kpisArray: Kpi[] = [
                     { title: 'Follow-up Atrasado', value: kpisRes.followUpAtrasado || 0, color: 'text-white' },
                     { title: 'Follow-up Futuro', value: kpisRes.leadsEmTratativa || 0, color: 'text-white' },
@@ -97,16 +101,19 @@ const BrokerDashboard: React.FC = () => {
         
         fetchClients();
         fetchStaticKpis();
-    }, [searchQuery, statusFilter]);
+    }, [searchQuery, statusFilter, user]);
     
     useEffect(() => {
+        if (!user) return;
         const fetchProductivity = async () => {
             try {
                 const apiParams = {
                     startDate: formatDateForApi(dateRange.start),
                     endDate: formatDateForApi(dateRange.end),
+                    role: user.role,
+                    currentUserId: user.id,
                 };
-                const productivityRes = await api.getProductivityData(apiParams);
+                const productivityRes = await analyticsApi.getProductivityData(apiParams);
                 setProductivityData(productivityRes);
             } catch (err) {
                 console.error("Failed to fetch productivity data", err);
@@ -115,7 +122,7 @@ const BrokerDashboard: React.FC = () => {
         };
 
         fetchProductivity();
-    }, [dateRange]);
+    }, [dateRange, user]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -129,8 +136,9 @@ const BrokerDashboard: React.FC = () => {
 
 
     const handleAddClient = async (clientData: Omit<Client, 'id' | 'interactions'>) => {
+        if (!user) return;
         try {
-            await api.createClient({ ...clientData, status: ClientStatus.FIRST_CONTACT });
+            await clientApi.createClient({ ...clientData, status: ClientStatus.FIRST_CONTACT }, user.id);
             // If filters are active, clearing them will trigger the useEffect to refetch.
             // Otherwise, we need to trigger the fetch manually.
             if (searchQuery || statusFilter) {
@@ -148,7 +156,7 @@ const BrokerDashboard: React.FC = () => {
     
     const updateClientDetails = async (clientId: string, details: Partial<Client>) => {
          try {
-            await api.updateClient(clientId, details);
+            await clientApi.updateClient(clientId, details);
             fetchClients(); // Refetch to ensure data consistency
         } catch (err) {
             alert('Falha ao atualizar cliente.');
@@ -157,12 +165,14 @@ const BrokerDashboard: React.FC = () => {
     };
 
     const handleClientStatusChange = async (clientId: string, fromStatus: ClientStatus, toStatus: ClientStatus) => {
+        if (!user) return;
         try {
-            await api.createInteraction(clientId, {
+            await interactionApi.createInteraction({
+                clientId,
+                userId: user.id,
                 type: InteractionType.STATUS_CHANGE,
                 observation: `Status alterado de '${fromStatus}' para '${toStatus}'`,
-                from_status: fromStatus,
-                to_status: toStatus,
+                explicitNext: toStatus,
             });
             fetchClients(); // Refetch to see the change in the table
         } catch (err) {
@@ -173,9 +183,13 @@ const BrokerDashboard: React.FC = () => {
 
 
     const deleteClient = async (clientId: string) => {
+        if (!user || user.role !== Role.ADMIN) {
+             alert('Apenas administradores podem excluir clientes.');
+             return;
+        }
          if (window.confirm('Tem certeza que deseja excluir este cliente permanentemente?')) {
             try {
-                await api.deleteClientApi(clientId);
+                await clientApi.deleteClient(clientId);
                 // If filters are active, clearing them will trigger the useEffect to refetch.
                 // Otherwise, we need to trigger the fetch manually.
                 if (searchQuery || statusFilter) {
@@ -192,12 +206,11 @@ const BrokerDashboard: React.FC = () => {
     };
 
     const handleImportClients = async (file: File, mapping: Record<string, string>) => {
+        if (!user) return;
         try {
-            const result = await api.importClients(file, mapping);
+            const result = await clientApi.importClients(file, mapping, user.id);
             alert(`${result.imported} clientes importados, ${result.skipped} ignorados.`);
             setIsImportModalOpen(false);
-            // If filters are active, clearing them will trigger the useEffect to refetch.
-            // Otherwise, we need to trigger the fetch manually.
             if (searchQuery || statusFilter) {
                 setSearchQuery('');
                 setStatusFilter('');
@@ -213,7 +226,7 @@ const BrokerDashboard: React.FC = () => {
     const handleExportCsv = async () => {
         setIsExportMenuOpen(false);
         try {
-            const blob = await api.exportClients();
+            const blob = await clientApi.exportClients();
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
 
@@ -300,7 +313,7 @@ const BrokerDashboard: React.FC = () => {
             case 'Primeiro Atendimento':
                 return results.filter(c => c.status === ClientStatus.FIRST_CONTACT);
             case 'Total de leads':
-                return results;
+                return results.filter(c => c.status !== ClientStatus.ARCHIVED);
             default:
                 return results;
         }

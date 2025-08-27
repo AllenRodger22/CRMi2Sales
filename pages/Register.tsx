@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+// FIX: Changed to namespace import to fix module resolution issues.
+import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Role } from '../types';
 
@@ -11,7 +13,8 @@ const RegisterPage: React.FC = () => {
     const { register, isLoading } = useAuth();
     const [localError, setLocalError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    const navigate = useNavigate();
+    // FIX: Used namespace import.
+    const navigate = ReactRouterDOM.useNavigate();
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,13 +27,23 @@ const RegisterPage: React.FC = () => {
         }
 
         try {
-            await register(name, email, password, role);
-            setSuccessMessage('Conta criada com sucesso! Redirecionando para o login...');
-            setTimeout(() => {
-                navigate('/login');
-            }, 2000);
+            const { confirmationSent } = await register(name, email, password, role);
+
+            if (confirmationSent) {
+                setSuccessMessage('Conta criada! Por favor, verifique seu e-mail para confirmar sua conta antes de fazer login.');
+                // Do not redirect automatically. The user must take action.
+            } else {
+                setSuccessMessage('Conta criada com sucesso! Redirecionando para o login...');
+                setTimeout(() => {
+                    navigate('/login');
+                }, 2000);
+            }
         } catch (err: any) {
-            setLocalError(err.message || 'Falha ao registrar.');
+             if (err.message && err.message.includes('User already registered')) {
+                setLocalError('Um usuário com este e-mail já existe.');
+            } else {
+                setLocalError(err.message || 'Falha ao registrar.');
+            }
         }
     };
 
@@ -106,9 +119,10 @@ const RegisterPage: React.FC = () => {
                 </form>
                  <p className="mt-4 text-center text-sm text-gray-400">
                     Já tem uma conta?{' '}
-                    <Link to="/login" className="font-medium text-orange-400 hover:text-orange-300">
+                    {/* FIX: Used namespace import. */}
+                    <ReactRouterDOM.Link to="/login" className="font-medium text-orange-400 hover:text-orange-300">
                         Faça o login
-                    </Link>
+                    </ReactRouterDOM.Link>
                 </p>
             </div>
         </div>

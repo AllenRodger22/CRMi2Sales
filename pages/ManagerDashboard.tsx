@@ -5,7 +5,8 @@ import BreakdownTable from '../components/BreakdownTable';
 import FiltersBar from '../components/FiltersBar';
 import Tabs from '../components/Tabs';
 import { ProductivityData, FunnelAnalyticsData } from '../types';
-import * as api from '../services/mockApi';
+import * as analyticsApi from '../services/analytics';
+import { useAuth } from '../hooks/useAuth';
 import DateRangePickerModal from '../components/DateRangePickerModal';
 
 const formatCurrency = (value: number) => {
@@ -35,6 +36,7 @@ const formatDateForApi = (date: Date) => {
 };
 
 const ManagerDashboard: React.FC = () => {
+    const { user } = useAuth();
     const [productivityData, setProductivityData] = useState<ProductivityData | null>(null);
     const [funnelAnalyticsData, setFunnelAnalyticsData] = useState<FunnelAnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -43,21 +45,22 @@ const ManagerDashboard: React.FC = () => {
     const [selectedBrokerId, setSelectedBrokerId] = useState(''); // Empty string for 'All Brokers'
 
     useEffect(() => {
+        if (!user) return;
+
         const fetchData = async () => {
             setLoading(true);
             try {
-                const apiParams: { startDate: string; endDate: string; brokerId?: string } = {
+                const apiParams = {
                     startDate: formatDateForApi(dateRange.start),
                     endDate: formatDateForApi(dateRange.end),
+                    role: user.role,
+                    currentUserId: user.id,
+                    brokerId: selectedBrokerId || undefined,
                 };
-                if (selectedBrokerId) {
-                    apiParams.brokerId = selectedBrokerId;
-                }
                 
-                // The productivity call now also returns the list of brokers and manager KPIs.
                 const [productivityRes, funnelRes] = await Promise.all([
-                    api.getProductivityData(apiParams),
-                    api.getFunnelAnalyticsData(apiParams),
+                    analyticsApi.getProductivityData(apiParams),
+                    analyticsApi.getFunnelAnalyticsData(apiParams),
                 ]);
 
                 setProductivityData(productivityRes);
@@ -71,7 +74,7 @@ const ManagerDashboard: React.FC = () => {
         };
 
         fetchData();
-    }, [dateRange, selectedBrokerId]);
+    }, [dateRange, selectedBrokerId, user]);
 
     const chartData = useMemo(() => {
         if (!productivityData) return [];

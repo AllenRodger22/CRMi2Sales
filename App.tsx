@@ -1,15 +1,16 @@
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import * as ReactRouterDOM from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './hooks/useAuth';
 import LoginPage from './pages/Login';
-import RegisterPage from './pages/Register'; // Import the new Register page
+import RegisterPage from './pages/Register';
 import DashboardLayout from './layouts/DashboardLayout';
 import BrokerDashboard from './pages/BrokerDashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import ClientDetail from './pages/ClientDetail';
 import { Role } from './types';
+import UpdatePasswordPage from './pages/UpdatePassword';
 
 const App: React.FC = () => {
   return (
@@ -22,14 +23,24 @@ const App: React.FC = () => {
 };
 
 const Router: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isPasswordRecovery } = useAuth();
+
+  if (isPasswordRecovery) {
+    return (
+      <ReactRouterDOM.HashRouter>
+        <ReactRouterDOM.Routes>
+          <ReactRouterDOM.Route path="*" element={<UpdatePasswordPage />} />
+        </ReactRouterDOM.Routes>
+      </ReactRouterDOM.HashRouter>
+    );
+  }
 
   return (
-    <HashRouter>
-      <Routes>
-        <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
-        <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/" />} />
-        <Route 
+    <ReactRouterDOM.HashRouter>
+      <ReactRouterDOM.Routes>
+        <ReactRouterDOM.Route path="/login" element={!user ? <LoginPage /> : <ReactRouterDOM.Navigate to="/" />} />
+        <ReactRouterDOM.Route path="/register" element={!user ? <RegisterPage /> : <ReactRouterDOM.Navigate to="/" />} />
+        <ReactRouterDOM.Route 
           path="/*"
           element={
             <ProtectedRoute>
@@ -39,15 +50,15 @@ const Router: React.FC = () => {
             </ProtectedRoute>
           } 
         />
-      </Routes>
-    </HashRouter>
+      </ReactRouterDOM.Routes>
+    </ReactRouterDOM.HashRouter>
   );
 };
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   if (!user) {
-    return <Navigate to="/login" />;
+    return <ReactRouterDOM.Navigate to="/login" />;
   }
   return <>{children}</>;
 };
@@ -66,17 +77,16 @@ const DashboardRoutes: React.FC = () => {
       case Role.ADMIN:
         return <AdminDashboard />;
       default:
-        return <Navigate to="/login" />;
+        return <ReactRouterDOM.Navigate to="/login" />;
     }
   };
 
   return (
-    <Routes>
-      <Route index element={getDashboardForRole()} />
-      <Route path="client/:clientId" element={<ClientDetail />} />
-    </Routes>
+    <ReactRouterDOM.Routes>
+      <ReactRouterDOM.Route index element={getDashboardForRole()} />
+      <ReactRouterDOM.Route path="client/:clientId" element={<ClientDetail />} />
+    </ReactRouterDOM.Routes>
   );
 };
-
 
 export default App;

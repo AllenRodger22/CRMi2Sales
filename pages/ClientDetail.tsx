@@ -11,8 +11,10 @@ import {
     ArrowLeftIcon, PencilIcon, SaveIcon, ClassicPhoneIcon, DoubleCheckIcon,
     CalendarIcon, TrashIcon, MessageCircleIcon, XIcon, NoSymbolIcon
 } from '../components/Icons';
-import * as api from '../services/mockApi';
+import * as clientApi from '../services/clients';
+import * as interactionApi from '../services/interactions';
 import { FOLLOW_UP_STATE_COLORS } from '../constants';
+import { parseCurrency } from '../utils/helpers';
 
 const formatPhoneNumber = (phone: string) => {
     if (!phone) return { forTel: '', forWhatsApp: '' };
@@ -24,10 +26,9 @@ const formatPhoneNumber = (phone: string) => {
     };
 };
 
-const formatCurrency = (value?: string | number): string => {
-    if (value === null || value === undefined || value === '') return '';
-    const num = Number(String(value).replace(/[^0-9.,-]/g, '').replace(',', '.'));
-    if (isNaN(num)) return '';
+const formatCurrencyForDisplay = (value?: string | number): string => {
+    const num = parseCurrency(value);
+    if (num === null) return 'N/A';
     return new Intl.NumberFormat('pt-BR', {
         style: 'currency',
         currency: 'BRL',
@@ -55,15 +56,16 @@ const ClientDetail: React.FC = () => {
         if (!clientId) return;
         setLoading(true);
         try {
-            const clientData = await api.getClient(clientId);
+            const clientData = await clientApi.getClient(clientId);
             setClient(clientData);
             
             const lastFollowUp = clientData.interactions?.find(
                 (i: any) => i.type === InteractionType.FOLLOW_UP_SCHEDULED && !i.substituted
             );
             
-            if (lastFollowUp && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/.test(lastFollowUp.observation)) {
+            if (lastFollowUp && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{3})?)?Z$/.test(lastFollowUp.observation)) {
                 const utcDate = new Date(lastFollowUp.observation);
+                // Convert UTC to local time for the input
                 const localDateTime = new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000))
                     .toISOString()
                     .slice(0, 16);
@@ -85,50 +87,56 @@ const ClientDetail: React.FC = () => {
     }, [fetchClient]);
     
     const handleSaveNote = async () => {
-        if (!clientId || !newInteractionText.trim()) return;
-        const interactionData = {
+        if (!clientId || !newInteractionText.trim() || !user) return;
+        
+        await interactionApi.createInteraction({
+            clientId,
+            userId: user.id,
             type: InteractionType.NOTE,
             observation: newInteractionText.trim(),
-        };
-        await api.createInteraction(clientId, interactionData);
+        });
         setNewInteractionText('');
         fetchClient();
     };
 
     const handleLoggedCallSubmit = async (log: { type: 'CE' | 'CNE'; details: string }) => {
-        if (!clientId) return;
+        if (!clientId || !user) return;
         const observation = `${log.type}: ${log.details}`;
-        const interactionData = {
+        
+        await interactionApi.createInteraction({
+            clientId,
+            userId: user.id,
             type: InteractionType.LOGGED_CALL,
             observation,
-        };
-        await api.createInteraction(clientId, interactionData);
+        });
         setIsLogCallModalOpen(false);
         fetchClient();
     };
 
     const handleStatusChange = async (newStatus: ClientStatus) => {
-        if (!clientId || client?.status === newStatus) return;
-        const interactionData = {
+        if (!clientId || !user || client?.status === newStatus) return;
+        
+        await interactionApi.createInteraction({
+            clientId,
+            userId: user.id,
             type: InteractionType.STATUS_CHANGE,
-            from_status: client?.status,
-            to_status: newStatus,
+            explicitNext: newStatus,
             observation: `Status alterado de '${client?.status}' para '${newStatus}'`,
-        };
-        await api.createInteraction(clientId, interactionData);
+        });
         fetchClient();
     };
 
     const scheduleNewFollowUp = async (dateToSchedule: Date) => {
-        if (!clientId) return;
-        const interactionData = {
-            type: InteractionType.FOLLOW_UP_SCHEDULED,
-            observation: dateToSchedule.toISOString(),
-        };
+        if (!clientId || !user) return;
         try {
-            await api.createInteraction(clientId, interactionData);
+            await interactionApi.createInteraction({
+                clientId,
+                userId: user.id,
+                type: InteractionType.FOLLOW_UP_SCHEDULED,
+                observation: dateToSchedule.toISOString(),
+            });
             if (client && client.followUpState !== FollowUpState.ACTIVE) {
-                await api.updateClient(clientId, { followUpState: FollowUpState.ACTIVE });
+                await clientApi.updateClient(clientId, { followUpState: FollowUpState.ACTIVE });
             }
             fetchClient();
         } catch (err) {
@@ -169,32 +177,38 @@ const ClientDetail: React.FC = () => {
 
     
     const handleCompleteFollowUp = async (shouldRefetch = true) => {
-        if (!clientId) return;
-        await api.createInteraction(clientId, {
+        if (!clientId || !user) return;
+        await interactionApi.createInteraction({
+            clientId,
+            userId: user.id,
             type: InteractionType.FOLLOW_UP_COMPLETED,
             observation: 'Follow-up concluído.',
         });
-        await api.updateClient(clientId, { followUpState: FollowUpState.COMPLETED });
+        await clientApi.updateClient(clientId, { followUpState: FollowUpState.COMPLETED });
         if (shouldRefetch) fetchClient();
     };
 
     const handleCancelFollowUp = async (shouldRefetch = true) => {
-        if (!clientId) return;
-        await api.createInteraction(clientId, {
+        if (!clientId || !user) return;
+        await interactionApi.createInteraction({
+            clientId,
+            userId: user.id,
             type: InteractionType.FOLLOW_UP_CANCELED,
             observation: 'Follow-up cancelado.',
         });
-        await api.updateClient(clientId, { followUpState: FollowUpState.CANCELED });
+        await clientApi.updateClient(clientId, { followUpState: FollowUpState.CANCELED });
         if (shouldRefetch) fetchClient();
     };
     
     const handleMarkAsLost = async (shouldRefetch = true) => {
-        if (!clientId) return;
-        await api.createInteraction(clientId, {
+        if (!clientId || !user) return;
+        await interactionApi.createInteraction({
+            clientId,
+            userId: user.id,
             type: InteractionType.FOLLOW_UP_LOST,
             observation: 'Follow-up marcado como perdido.',
         });
-        await api.updateClient(clientId, { followUpState: FollowUpState.LOST });
+        await clientApi.updateClient(clientId, { followUpState: FollowUpState.LOST });
         if (shouldRefetch) fetchClient();
     };
     
@@ -219,7 +233,7 @@ const ClientDetail: React.FC = () => {
 
     const handleUpdateClient = async (updatedData: Omit<Client, 'id' | 'status' | 'interactions' | 'followUpState'>) => {
         if (!clientId) return;
-        await api.updateClient(clientId, updatedData);
+        await clientApi.updateClient(clientId, updatedData);
         setIsEditModalOpen(false);
         fetchClient();
     };
@@ -379,7 +393,7 @@ const ClientDetail: React.FC = () => {
                         <h2 className="text-xl font-bold text-white mb-4">Informações Adicionais</h2>
                         <div className="space-y-2 text-sm">
                             <p><strong className="text-gray-400">Produto:</strong> {client.product || 'N/A'}</p>
-                            <p><strong className="text-gray-400">Valor do Imóvel:</strong> {formatCurrency(client.propertyValue) || 'N/A'}</p>
+                            <p><strong className="text-gray-400">Valor do Imóvel:</strong> {formatCurrencyForDisplay(client.propertyValue)}</p>
                             <p className="pt-2"><strong className="text-gray-400">Observações:</strong></p>
                             <p className="text-gray-300 whitespace-pre-wrap">{client.observations || 'Nenhuma'}</p>
                         </div>
