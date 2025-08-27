@@ -1,3 +1,4 @@
+
 import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -64,10 +65,18 @@ const AppContent: React.FC = () => {
 const DashboardRoutes: React.FC = () => {
   const { user } = useAuth();
 
-  // User might still be null briefly while profile is fetched after session is confirmed.
+  // If RequireAuth has passed, we have a session.
+  // If user is null here, it means the profile fetch is either in progress or has failed.
   if (!user) {
-    // A spinner or skeleton screen could go here
-    return <div className="p-8 text-center">Carregando perfil do usuário...</div>;
+    return (
+      <div className="p-8 text-center">
+        <h2 className="text-xl font-bold text-yellow-400">Carregando Perfil...</h2>
+        <p className="mt-2 text-gray-300">
+          Aguarde um momento. Se esta mensagem persistir, pode ter ocorrido um erro.
+          Nesse caso, por favor, <a href="#" onClick={(e) => { e.preventDefault(); window.location.reload(); }} className="text-orange-400 hover:underline">recarregue a página</a>.
+        </p>
+      </div>
+    );
   }
 
   const getDashboardForRole = () => {
@@ -79,17 +88,25 @@ const DashboardRoutes: React.FC = () => {
       case Role.ADMIN:
         return <AdminDashboard />;
       default:
-        // This case should ideally not be reached if auth flow is correct
-        return <ReactRouterDOM.Navigate to="/login" replace />;
+        // FIX: Added a fallback UI for unknown roles.
+        return (
+            <div className="p-8 text-center">
+              <h2 className="text-xl font-bold text-red-400">Papel de Usuário Desconhecido</h2>
+              <p className="mt-2 text-gray-300">
+                Não foi possível determinar sua página inicial. Por favor, entre em contato com o suporte.
+              </p>
+            </div>
+        );
     }
   };
 
   return (
-    <ReactRouterDOM.Routes>
-      <ReactRouterDOM.Route index element={getDashboardForRole()} />
-      <ReactRouterDOM.Route path="client/:clientId" element={<ClientDetail />} />
-    </ReactRouterDOM.Routes>
+      <ReactRouterDOM.Routes>
+          <ReactRouterDOM.Route path="/" element={getDashboardForRole()} />
+          <ReactRouterDOM.Route path="client/:clientId" element={<ClientDetail />} />
+      </ReactRouterDOM.Routes>
   );
 };
 
+// FIX: Added default export to resolve module loading error.
 export default App;

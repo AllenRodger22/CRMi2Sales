@@ -59,7 +59,10 @@ export const useAuthBoot = () => {
             navigate('/dashboard', { replace: true });
         } catch(e) {
             console.error('Sign in failed during profile fetch', e);
-            await supabase.auth.signOut(); // This will trigger the SIGNED_OUT event
+            // DO NOT SIGN OUT. The session is valid, only profile fetch failed.
+            // The user will be redirected to the dashboard, which will show an error state.
+            setUser(null);
+            navigate('/dashboard', { replace: true });
         }
       }
 

@@ -26,7 +26,8 @@ const ClientTable: React.FC<ClientTableProps> = ({ clients, loading, onUpdateCli
         if (e.target instanceof Element && e.target.closest('button')) {
             return;
         }
-        navigate(`/client/${clientId}`);
+        // FIX: Corrected navigation path to be absolute and include the /dashboard prefix.
+        navigate(`/dashboard/client/${clientId}`);
     };
 
     if (loading) {
@@ -73,7 +74,7 @@ const ClientTable: React.FC<ClientTableProps> = ({ clients, loading, onUpdateCli
                             <td className="p-4 text-right">
                                 <div className="flex justify-end items-center gap-2">
                                     <button 
-                                        onClick={() => client.status !== ClientStatus.ARCHIVED && onStatusChange(client.id, client.status, ClientStatus.ARCHIVED)}
+                                        onClick={(e) => { e.stopPropagation(); client.status !== ClientStatus.ARCHIVED && onStatusChange(client.id, client.status, ClientStatus.ARCHIVED); }}
                                         className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         title={client.status !== ClientStatus.ARCHIVED ? "Arquivar Cliente" : "Cliente já arquivado"}
                                         disabled={client.status === ClientStatus.ARCHIVED}
@@ -82,7 +83,7 @@ const ClientTable: React.FC<ClientTableProps> = ({ clients, loading, onUpdateCli
                                     </button>
                                     {user?.role === Role.ADMIN && (
                                         <button 
-                                            onClick={() => onDeleteClient(client.id)}
+                                            onClick={(e) => { e.stopPropagation(); onDeleteClient(client.id); }}
                                             className="p-2 text-gray-400 hover:text-red-400 hover:bg-white/10 rounded-full transition-colors"
                                             title="Excluir Cliente"
                                         >
