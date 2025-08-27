@@ -42,6 +42,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // After Supabase has processed the token from the URL (indicated by the SIGNED_IN event
+      // and the presence of the token in the hash), we clean the URL and navigate.
+      if (event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {
+        // Use replaceState to clean the URL of the token without adding to history.
+        // Then, set the hash to navigate to the dashboard, which the HashRouter will handle.
+        window.history.replaceState(null, '', window.location.pathname);
+        window.location.hash = '/dashboard';
+      }
+      
       try {
         if (event === 'PASSWORD_RECOVERY') {
           setIsPasswordRecovery(true);
