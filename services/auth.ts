@@ -13,15 +13,12 @@ export async function login(email: string, password: string) {
 
 /**
  * Signs in the user using Google OAuth with a redirect flow.
- * The redirect URL is now explicitly set to the current window's origin to ensure
- * it works correctly in any environment (local, AI Studio, production).
+ * The redirect URL is now managed solely by the 'Site URL' setting in the Supabase dashboard
+ * under Authentication > URL Configuration.
  */
 export async function loginWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: {
-      redirectTo: window.location.origin,
-    },
   });
   if (error) throw error;
 }
@@ -39,7 +36,7 @@ export async function register(
         email,
         password,
         options: {
-            emailRedirectTo: window.location.origin, // For the confirmation email link
+            // Pass user metadata to be used by the `ensure_profile` RPC function
             data: {
                 name,
                 role,
@@ -58,12 +55,10 @@ export async function register(
 
 /**
  * Sends a password reset email to the user.
- * The redirect URL is now explicitly set to ensure it works in any environment.
+ * The redirect URL is now managed solely by the 'Site URL' setting in the Supabase dashboard.
  */
 export async function sendPasswordResetEmail(email: string) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
-    });
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
     if (error) throw error;
 }
 

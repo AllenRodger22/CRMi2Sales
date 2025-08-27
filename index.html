@@ -9,104 +9,32 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              poppins: ['Poppins', 'sans-serif'],
-            }
-          }
-        }
-      }
-    </script>
     <style>
       body {
-        background-color: #050505; /* Near black */
         font-family: 'Poppins', sans-serif;
-        position: relative;
-        overflow-x: hidden;
       }
-
-      body::before {
-          content: '';
-          position: fixed;
-          inset: 0;
-          z-index: -10;
-          /* A very subtle gradient for depth */
-          background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
-      }
-
-      #background-glow {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        z-index: -5;
-        overflow: hidden;
-        pointer-events: none;
-      }
-
-      .blob {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(100px);
-          opacity: 0.8;
-      }
-
-      .blob-1 {
-          width: 45vmax;
-          height: 45vmax;
-          top: -20%;
-          right: -20%;
-          background-color: rgba(234, 88, 12, 0.15); /* Orange */
-          animation: move-blob-1 25s infinite alternate ease-in-out;
-      }
-
-      .blob-2 {
-          width: 40vmax;
-          height: 40vmax;
-          bottom: -20%;
-          left: -20%;
-          background-color: rgba(249, 115, 22, 0.1); /* Lighter Orange */
-          animation: move-blob-2 30s infinite alternate ease-in-out;
-      }
-      
-      @keyframes move-blob-1 {
-          from { transform: translate(0, 0) scale(1) rotate(0deg); }
-          to { transform: translate(-10vw, 10vh) scale(1.2) rotate(45deg); }
-      }
-      @keyframes move-blob-2 {
-          from { transform: translate(0, 0) scale(1) rotate(0deg); }
-          to { transform: translate(10vw, -10vh) scale(0.8) rotate(-45deg); }
-      }
-
       .dashboard-background {
-        background-color: transparent;
+        background-color: #111827; /* Corresponde a bg-gray-900 */
+        background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0);
+        background-size: 20px 20px;
       }
-      
     </style>
   <script type="importmap">
 {
   "imports": {
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.8.2",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.8.2",
+    "jspdf": "https://aistudiocdn.com/jspdf@^3.0.2",
+    "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^5.0.2",
     "recharts": "https://aistudiocdn.com/recharts@^3.1.2",
-    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
-    "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^3.8.2",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.43.4"
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.56.0"
   }
 }
 </script>
 </head>
-  <body>
-    <div id="background-glow">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-    </div>
+  <body class="dashboard-background">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

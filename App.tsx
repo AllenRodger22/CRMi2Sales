@@ -11,64 +11,62 @@ import AdminDashboard from './pages/AdminDashboard';
 import ClientDetail from './pages/ClientDetail';
 import { Role } from './types';
 import UpdatePasswordPage from './pages/UpdatePassword';
-import CompleteProfileModal from './components/CompleteProfileModal';
 
 const App: React.FC = () => {
   return (
+    <AuthProvider>
+      <div className="min-h-screen text-white font-sans">
+        <Router />
+      </div>
+    </AuthProvider>
+  );
+};
+
+const Router: React.FC = () => {
+  const { user, isPasswordRecovery } = useAuth();
+
+  if (isPasswordRecovery) {
+    return (
+      <ReactRouterDOM.HashRouter>
+        <ReactRouterDOM.Routes>
+          <ReactRouterDOM.Route path="*" element={<UpdatePasswordPage />} />
+        </ReactRouterDOM.Routes>
+      </ReactRouterDOM.HashRouter>
+    );
+  }
+
+  return (
     <ReactRouterDOM.HashRouter>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <ReactRouterDOM.Routes>
+        <ReactRouterDOM.Route path="/login" element={!user ? <LoginPage /> : <ReactRouterDOM.Navigate to="/" />} />
+        <ReactRouterDOM.Route path="/register" element={!user ? <RegisterPage /> : <ReactRouterDOM.Navigate to="/" />} />
+        <ReactRouterDOM.Route 
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <DashboardRoutes />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } 
+        />
+      </ReactRouterDOM.Routes>
     </ReactRouterDOM.HashRouter>
   );
 };
 
-const AppContent: React.FC = () => {
-    const { user, isPasswordRecovery, isProfileSetupRequired } = useAuth();
-    
-    return (
-        <div className="min-h-screen text-white font-sans">
-            <ReactRouterDOM.Routes>
-              { isPasswordRecovery ? (
-                  <ReactRouterDOM.Route path="*" element={<UpdatePasswordPage />} />
-              ) : (
-                <>
-                  {/* Public routes for logged-out users */}
-                  <ReactRouterDOM.Route 
-                    path="/login" 
-                    element={!user ? <LoginPage /> : <ReactRouterDOM.Navigate to="/" replace />} 
-                  />
-                  <ReactRouterDOM.Route 
-                    path="/register" 
-                    element={!user ? <RegisterPage /> : <ReactRouterDOM.Navigate to="/" replace />} 
-                  />
-
-                  {/* Protected routes for logged-in users */}
-                  <ReactRouterDOM.Route 
-                    path="/*"
-                    element={
-                      user ? (
-                        <DashboardLayout>
-                          <DashboardRoutes />
-                        </DashboardLayout>
-                      ) : (
-                        <ReactRouterDOM.Navigate to="/login" replace />
-                      )
-                    } 
-                  />
-                </>
-              )}
-            </ReactRouterDOM.Routes>
-            {isProfileSetupRequired && <CompleteProfileModal />}
-        </div>
-    );
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  if (!user) {
+    return <ReactRouterDOM.Navigate to="/login" />;
+  }
+  return <>{children}</>;
 };
-
 
 const DashboardRoutes: React.FC = () => {
   const { user } = useAuth();
 
-  if (!user) return null; // Should not be reached with the new routing, but safe to keep
+  if (!user) return null;
 
   const getDashboardForRole = () => {
     switch (user.role) {
@@ -79,9 +77,7 @@ const DashboardRoutes: React.FC = () => {
       case Role.ADMIN:
         return <AdminDashboard />;
       default:
-        // This case should ideally not be hit if roles are managed properly.
-        // Redirecting to login is a safe fallback.
-        return <ReactRouterDOM.Navigate to="/login" replace />;
+        return <ReactRouterDOM.Navigate to="/login" />;
     }
   };
 

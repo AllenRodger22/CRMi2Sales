@@ -1,11 +1,8 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { User, Role } from '../types';
 import * as authService from '../services/auth';
-import * as profileService from '../services/profile';
+import * as sessionService from '../services/session';
 import { supabase } from '../services/supabaseClient';
-import { User as SupabaseUser } from '@supabase/supabase-js';
-
 
 interface AuthContextType {
   user: User | null;
@@ -18,9 +15,6 @@ interface AuthContextType {
   sendPasswordResetEmail: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   isPasswordRecovery: boolean;
-  isProfileSetupRequired: boolean;
-  tempSessionUser: SupabaseUser | null;
-  completeUserProfile: (name: string, role: Role) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -34,9 +28,6 @@ export const AuthContext = createContext<AuthContextType>({
   sendPasswordResetEmail: async () => {},
   updatePassword: async () => {},
   isPasswordRecovery: false,
-  isProfileSetupRequired: false,
-  tempSessionUser: null,
-  completeUserProfile: async () => {},
 });
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -45,81 +36,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
-  const [isProfileSetupRequired, setIsProfileSetupRequired] = useState(false);
-  const [tempSessionUser, setTempSessionUser] = useState<SupabaseUser | null>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
+    // This listener handles all authentication state changes.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setIsLoading(true);
+      // Handle password recovery flow
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true);
         setUser(null);
-        setIsProfileSetupRequired(false);
-      } else if (event === 'SIGNED_IN' && session?.user) {
+      } else if (session?.user) {
+        // When a user logs in, signs up, or the session is restored.
         setIsPasswordRecovery(false);
-        // Check if the user profile exists in our public.profiles table.
-        const profile = await profileService.getProfile(session.user.id);
+        // Fetch or create the user's profile from our public.profiles table.
+        const profile = await sessionService.getAndEnsureUserProfile();
+        setUser(profile);
         
-        if (profile) {
-            // Profile exists, user can proceed.
-            setUser(profile);
-            setIsProfileSetupRequired(false);
-            setTempSessionUser(null);
-        } else {
-            // This is the first login, profile needs to be created.
-            setUser(null);
-            setTempSessionUser(session.user);
-            setIsProfileSetupRequired(true);
+        // After an OAuth login, the user is redirected back with the token in the URL hash.
+        // Once the session is confirmed ('SIGNED_IN' event), we clean the URL.
+        if (event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {
+            // Using HashRouter, so we navigate to the root hash path.
+            window.location.hash = '/';
         }
-        
-        // After processing the session, if the URL contains OAuth tokens,
-        // navigate to the root to clean up the URL bar.
-        if (window.location.hash.includes('access_token')) {
-            navigate('/', { replace: true });
-        }
-      } else if (event === 'SIGNED_OUT') {
+
+      } else {
+        // When a user logs out or the session expires.
+        setIsPasswordRecovery(false);
         setUser(null);
-        setIsPasswordRecovery(false);
-        setIsProfileSetupRequired(false);
-        setTempSessionUser(null);
-        navigate('/login', { replace: true });
       }
       setIsInitializing(false);
-      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const completeUserProfile = async (name: string, role: Role) => {
-    if (!tempSessionUser) throw new Error("No temporary session found to create profile.");
-    setIsLoading(true);
-    setError(null);
-    try {
-        const newProfile = await profileService.createProfile({
-            id: tempSessionUser.id,
-            email: tempSessionUser.email!,
-            name,
-            role,
-        });
-        setUser(newProfile);
-        setIsProfileSetupRequired(false);
-        setTempSessionUser(null);
-    } catch (err: any) {
-        console.error("Profile completion failed", err);
-        setError(err.message || 'Failed to complete profile');
-        throw err;
-    } finally {
-        setIsLoading(false);
-    }
-  };
+  }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
     try {
       await authService.login(email, password);
+      // onAuthStateChange will handle setting the user state.
     } catch (err: any) {
       console.error("Login failed", err);
       setError(err.message || 'Failed to login');
@@ -147,6 +102,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     setError(null);
     try {
+      // The register service now only handles the signUp call.
+      // Profile creation is handled by the RPC on the first login.
       return await authService.register({ name, email, password, role });
     } catch (err: any) {
        console.error("Registration failed", err);
@@ -176,7 +133,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
      setError(null);
      try {
        await authService.updatePassword(password);
-       setIsPasswordRecovery(false);
+       setIsPasswordRecovery(false); // Success, exit recovery mode
      } catch (err: any) {
         console.error("Password update failed", err);
         setError(err.message || 'Failed to update password');
@@ -188,7 +145,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     await authService.logout();
-    // onAuthStateChange('SIGNED_OUT') will handle state cleanup and navigation.
+    setUser(null);
+    setIsPasswordRecovery(false);
   };
 
   if (isInitializing) {
@@ -200,7 +158,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading, error, loginWithGoogle, sendPasswordResetEmail, updatePassword, isPasswordRecovery, isProfileSetupRequired, tempSessionUser, completeUserProfile }}>
+    <AuthContext.Provider value={{ user, login, register, logout, isLoading, error, loginWithGoogle, sendPasswordResetEmail, updatePassword, isPasswordRecovery }}>
       {children}
     </AuthContext.Provider>
   );
