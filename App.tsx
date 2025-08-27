@@ -1,3 +1,4 @@
+
 import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -15,10 +16,26 @@ import UpdatePasswordPage from './pages/UpdatePassword';
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <div className="min-h-screen text-white font-sans">
-        <Router />
-      </div>
+      <AppContent />
     </AuthProvider>
+  );
+};
+
+const AppContent: React.FC = () => {
+  const { isInitializing } = useAuth();
+
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-white text-lg">Carregando sessão...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen text-white font-sans">
+      <Router />
+    </div>
   );
 };
 
