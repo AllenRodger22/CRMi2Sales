@@ -11,15 +11,24 @@ import AdminDashboard from './pages/AdminDashboard';
 import ClientDetail from './pages/ClientDetail';
 import { Role } from './types';
 import UpdatePasswordPage from './pages/UpdatePassword';
+import CompleteProfileModal from './components/CompleteProfileModal';
 
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <div className="min-h-screen text-white font-sans">
-        <Router />
-      </div>
+      <AppContent />
     </AuthProvider>
   );
+};
+
+const AppContent: React.FC = () => {
+    const { isProfileSetupRequired } = useAuth();
+    return (
+        <div className="min-h-screen text-white font-sans">
+            <Router />
+            {isProfileSetupRequired && <CompleteProfileModal />}
+        </div>
+    );
 };
 
 const Router: React.FC = () => {
