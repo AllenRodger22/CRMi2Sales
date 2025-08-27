@@ -5,6 +5,9 @@ import * as authService from '../services/auth';
 import * as sessionService from '../services/session';
 import { supabase } from '../services/supabaseClient';
 
+// For debugging purposes, can be turned off in production
+const DEBUG_AUTH = true;
+
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
@@ -42,24 +45,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // After Supabase has processed the token from the URL (indicated by the SIGNED_IN event
-      // and the presence of the token in the hash), we clean the URL and navigate.
-      if (event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {
-        // Use replaceState to clean the URL of the token without adding to history.
-        // Then, set the hash to navigate to the dashboard, which the HashRouter will handle.
-        window.history.replaceState(null, '', window.location.pathname);
-        window.location.hash = '/dashboard';
+      if (DEBUG_AUTH) {
+          console.log(`[Auth State Change] Event: ${event}`, { session, hash: window.location.hash });
       }
-      
+
       try {
         if (event === 'PASSWORD_RECOVERY') {
           setIsPasswordRecovery(true);
           setUser(null);
         } else if (session?.user) {
+          // This handles SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED events.
           setIsPasswordRecovery(false);
+          
+          // CRITICAL STEP 1: Get user profile and update React state FIRST.
+          // This ensures protected routes will see the user as logged in.
           const profile = await sessionService.getAndEnsureUserProfile();
           setUser(profile);
+
+          // CRITICAL STEP 2: Handle the specific post-OAuth redirect case.
+          // This logic runs only once, right after returning from Google.
+          if (event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {
+              if (DEBUG_AUTH) console.log('[Auth] OAuth callback detected. Cleaning URL and navigating.');
+              
+              // Clean the Supabase token from the URL without reloading.
+              window.history.replaceState(null, '', window.location.pathname);
+              
+              // Navigate to the dashboard using the HashRouter's mechanism.
+              window.location.hash = '/dashboard';
+          }
         } else {
+          // This handles SIGNED_OUT event or no session found.
           setIsPasswordRecovery(false);
           setUser(null);
         }

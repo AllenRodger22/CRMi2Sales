@@ -10,6 +10,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Supabase URL and Anon Key must be provided.");
 }
 
+/**
+ * Supabase client configured for OAuth with HashRouter.
+ * - detectSessionInUrl: Reads #access_token from the URL.
+ * - persistSession: Caches the session in localStorage.
+ * - autoRefreshToken: Keeps the user logged in.
+ */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
