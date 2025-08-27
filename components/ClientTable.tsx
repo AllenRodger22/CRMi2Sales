@@ -32,7 +32,7 @@ const ClientTable: React.FC<ClientTableProps> = ({ clients, loading, onUpdateCli
   return (
     <div className="overflow-x-auto max-h-[450px] overflow-y-auto">
       <table className="w-full text-left text-sm text-gray-300">
-        <thead className="border-b border-white/20 sticky top-0 bg-white/5 backdrop-blur-md">
+        <thead className="border-b border-white/20 sticky top-0 bg-gray-900/70 backdrop-blur-lg">
           <tr>
             <th className="p-4">Nome</th>
             <th className="p-4">Número</th>

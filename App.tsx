@@ -1,5 +1,5 @@
-import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './hooks/useAuth';
 import LoginPage from './pages/Login';
@@ -10,6 +10,25 @@ import ManagerDashboard from './pages/ManagerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import ClientDetail from './pages/ClientDetail';
 import { Role } from './types';
+
+const BackgroundManager = () => {
+  const location = useLocation();
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+
+  useEffect(() => {
+    const bgElement = document.getElementById('auth-background');
+    if (bgElement) {
+      if (isAuthPage) {
+        bgElement.classList.add('visible');
+      } else {
+        bgElement.classList.remove('visible');
+      }
+    }
+  }, [isAuthPage]);
+
+  return null; // This component does not render anything
+};
+
 
 const App: React.FC = () => {
   return (
@@ -26,6 +45,7 @@ const Router: React.FC = () => {
 
   return (
     <HashRouter>
+      <BackgroundManager />
       <Routes>
         <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
         <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/" />} />

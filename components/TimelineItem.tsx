@@ -3,7 +3,7 @@ import { Interaction, InteractionType } from '../types';
 import { formatRelativeTime } from '../utils/date';
 import { 
     MessageCircleIcon, ClassicPhoneIcon, TagIcon, CalendarIcon, UserPlusIcon, 
-    HeadsetIcon, FaceFrownIcon, SaveIcon, DoubleCheckIcon, XIcon
+    HeadsetIcon, FaceFrownIcon, SaveIcon, DoubleCheckIcon, XIcon, NoSymbolIcon
 } from './Icons';
 
 const iconMap: Record<InteractionType, { icon: React.FC<any>, color: string }> = {
@@ -15,6 +15,7 @@ const iconMap: Record<InteractionType, { icon: React.FC<any>, color: string }> =
     [InteractionType.FOLLOW_UP_SCHEDULED]: { icon: CalendarIcon, color: 'bg-orange-500/30' },
     [InteractionType.FOLLOW_UP_COMPLETED]: { icon: DoubleCheckIcon, color: 'bg-green-500/30' },
     [InteractionType.FOLLOW_UP_CANCELED]: { icon: XIcon, color: 'bg-red-500/30' },
+    [InteractionType.FOLLOW_UP_LOST]: { icon: NoSymbolIcon, color: 'bg-rose-500/30' },
     [InteractionType.CLIENT_CREATED]: { icon: UserPlusIcon, color: 'bg-teal-500/30' },
     [InteractionType.AUDIO]: { icon: HeadsetIcon, color: 'bg-sky-500/30' },
     [InteractionType.INSECURE]: { icon: FaceFrownIcon, color: 'bg-yellow-500/30' },

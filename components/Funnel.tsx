@@ -8,11 +8,11 @@ const ChevronDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 );
 
 const FUNNEL_COLORS = [
-  'bg-red-500',    // Ligações
-  'bg-orange-500', // CE
-  'bg-yellow-400', // Tratativa
-  'bg-lime-500',   // Documentação Completa
-  'bg-green-500',  // Vendas
+  'bg-red-500/80',    // Ligações
+  'bg-orange-500/80', // CE
+  'bg-yellow-400/80', // Tratativa
+  'bg-lime-500/80',   // Documentação Completa
+  'bg-green-500/80',  // Vendas
 ];
 
 // The correct, expected stages for the funnel, in order.
@@ -80,7 +80,7 @@ const Funnel: React.FC<{ data: FunnelAnalyticsData }> = ({ data }) => {
           <React.Fragment key={stage.stage}>
             {/* Bar */}
             <div
-              className={`${color} rounded-md px-4 py-2 flex justify-between items-center text-white shadow-lg border border-white/10 transition-all duration-300 w-full`}
+              className={`${color} rounded-md px-4 py-2 flex justify-between items-center text-white shadow-lg border border-white/10 transition-all duration-300 w-full backdrop-blur-sm`}
               title={`${stage.count} em "${stage.stage}"`}
               style={{ width: `${widthPercentage}%` }}
             >

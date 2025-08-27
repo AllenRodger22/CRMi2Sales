@@ -23,4 +23,5 @@ export const FOLLOW_UP_STATE_COLORS: Record<FollowUpState, string> = {
     [FollowUpState.DELAYED]: 'bg-red-500/20 text-red-300 border border-red-500/30',
     [FollowUpState.COMPLETED]: 'bg-green-500/20 text-green-300 border border-green-500/30',
     [FollowUpState.CANCELED]: 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30',
+    [FollowUpState.LOST]: 'bg-rose-500/20 text-rose-300 border border-rose-500/30',
 };

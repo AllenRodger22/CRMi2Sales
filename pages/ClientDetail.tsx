@@ -6,10 +6,10 @@ import TimelineItem from '../components/TimelineItem';
 import Tag from '../components/Tag';
 import ClientFormModal from '../components/AddClientModal';
 import LogCallModal from '../components/LogCallModal';
-import ConfirmationModal from '../components/ConfirmationModal';
+import ResolveFollowUpModal, { FollowUpResolution } from '../components/ResolveFollowUpModal';
 import { 
     ArrowLeftIcon, PencilIcon, SaveIcon, ClassicPhoneIcon, DoubleCheckIcon,
-    CalendarIcon, TrashIcon, MessageCircleIcon, XIcon
+    CalendarIcon, TrashIcon, MessageCircleIcon, XIcon, NoSymbolIcon
 } from '../components/Icons';
 import * as api from '../services/mockApi';
 import { FOLLOW_UP_STATE_COLORS } from '../constants';
@@ -45,14 +45,12 @@ const ClientDetail: React.FC = () => {
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isLogCallModalOpen, setIsLogCallModalOpen] = useState(false);
-    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
     
     const [newInteractionText, setNewInteractionText] = useState('');
     const [followUpDateTime, setFollowUpDateTime] = useState('');
+    const [pendingFollowUpDate, setPendingFollowUpDate] = useState<Date | null>(null);
     
-    // State to hold the action to be confirmed
-    const [confirmAction, setConfirmAction] = useState<{ execute: () => Promise<void> } | null>(null);
-
     const fetchClient = useCallback(async () => {
         if (!clientId) return;
         setLoading(true);
@@ -85,47 +83,16 @@ const ClientDetail: React.FC = () => {
     useEffect(() => {
         fetchClient();
     }, [fetchClient]);
-
-    const handleInteractionWrapper = async (interactionFn: () => Promise<any>) => {
-        if (client && (client.followUpState === FollowUpState.ACTIVE || client.followUpState === FollowUpState.DELAYED)) {
-            setConfirmAction({ execute: interactionFn });
-            setIsConfirmModalOpen(true);
-        } else {
-            await interactionFn();
-            if (client && client.followUpState === FollowUpState.NO_FOLLOW_UP) {
-                await api.updateClient(client.id, { followUpState: FollowUpState.ACTIVE });
-            }
-            fetchClient();
-        }
-    };
     
-    const handleConfirmFollowUpAndInteract = async () => {
-        if (confirmAction) {
-            await confirmAction.execute();
-            await handleCompleteFollowUp(false);
-        }
-        setIsConfirmModalOpen(false);
-        setConfirmAction(null);
-        fetchClient();
-    };
-
-    const handleKeepFollowUpAndInteract = async () => {
-        if (confirmAction) {
-            await confirmAction.execute();
-        }
-        setIsConfirmModalOpen(false);
-        setConfirmAction(null);
-        fetchClient();
-    };
-
     const handleSaveNote = async () => {
         if (!clientId || !newInteractionText.trim()) return;
         const interactionData = {
             type: InteractionType.NOTE,
             observation: newInteractionText.trim(),
         };
-        await handleInteractionWrapper(() => api.createInteraction(clientId, interactionData));
+        await api.createInteraction(clientId, interactionData);
         setNewInteractionText('');
+        fetchClient();
     };
 
     const handleLoggedCallSubmit = async (log: { type: 'CE' | 'CNE'; details: string }) => {
@@ -135,8 +102,9 @@ const ClientDetail: React.FC = () => {
             type: InteractionType.LOGGED_CALL,
             observation,
         };
-        await handleInteractionWrapper(() => api.createInteraction(clientId, interactionData));
+        await api.createInteraction(clientId, interactionData);
         setIsLogCallModalOpen(false);
+        fetchClient();
     };
 
     const handleStatusChange = async (newStatus: ClientStatus) => {
@@ -147,42 +115,58 @@ const ClientDetail: React.FC = () => {
             to_status: newStatus,
             observation: `Status alterado de '${client?.status}' para '${newStatus}'`,
         };
-        await handleInteractionWrapper(() => api.createInteraction(clientId, interactionData));
+        await api.createInteraction(clientId, interactionData);
+        fetchClient();
     };
 
-    const handleScheduleFollowUp = async () => {
-        if (!clientId || !followUpDateTime) {
-            alert('Por favor, selecione uma data e hora para o follow-up.');
-            return;
-        }
-        const scheduledDate = new Date(followUpDateTime);
-        if (scheduledDate < new Date()) {
-            alert('Não é possível agendar um follow-up no passado.');
-            return;
-        }
+    const scheduleNewFollowUp = async (dateToSchedule: Date) => {
+        if (!clientId) return;
         const interactionData = {
             type: InteractionType.FOLLOW_UP_SCHEDULED,
-            observation: scheduledDate.toISOString(),
+            observation: dateToSchedule.toISOString(),
         };
-        
         try {
-            // First, create the interaction that represents the new schedule.
             await api.createInteraction(clientId, interactionData);
-
-            // Then, if the client's current follow-up state is not already active,
-            // update it to 'Ativo'. This covers cases where a new follow-up is
-            // created for a client that was 'Concluido', 'Cancelado', or 'Sem Follow Up'.
             if (client && client.followUpState !== FollowUpState.ACTIVE) {
                 await api.updateClient(clientId, { followUpState: FollowUpState.ACTIVE });
             }
-
-            // Finally, refetch all client data to update the UI.
             fetchClient();
         } catch (err) {
             console.error('Failed to schedule follow-up:', err);
             alert('Ocorreu um erro ao agendar o follow-up. Por favor, tente novamente.');
         }
     };
+
+    const initiateScheduleProcess = async (dateToSchedule: Date) => {
+         if (dateToSchedule < new Date()) {
+            alert('Não é possível agendar um follow-up no passado.');
+            return;
+        }
+        
+        if (client && (client.followUpState === FollowUpState.ACTIVE || client.followUpState === FollowUpState.DELAYED)) {
+            setPendingFollowUpDate(dateToSchedule);
+            setIsResolveModalOpen(true);
+            return;
+        }
+        
+        await scheduleNewFollowUp(dateToSchedule);
+    };
+    
+    const handleManualSchedule = () => {
+        if (!followUpDateTime) {
+            alert('Por favor, selecione uma data e hora para o follow-up.');
+            return;
+        }
+        initiateScheduleProcess(new Date(followUpDateTime));
+    };
+
+    const handleQuickSchedule = (days: number) => {
+        const targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() + days);
+        targetDate.setHours(9, 0, 0, 0); // Default to 9:00 AM
+        initiateScheduleProcess(targetDate);
+    };
+
     
     const handleCompleteFollowUp = async (shouldRefetch = true) => {
         if (!clientId) return;
@@ -194,20 +178,50 @@ const ClientDetail: React.FC = () => {
         if (shouldRefetch) fetchClient();
     };
 
-    const handleCancelFollowUp = async () => {
+    const handleCancelFollowUp = async (shouldRefetch = true) => {
         if (!clientId) return;
         await api.createInteraction(clientId, {
             type: InteractionType.FOLLOW_UP_CANCELED,
             observation: 'Follow-up cancelado.',
         });
         await api.updateClient(clientId, { followUpState: FollowUpState.CANCELED });
-        fetchClient();
+        if (shouldRefetch) fetchClient();
+    };
+    
+    const handleMarkAsLost = async (shouldRefetch = true) => {
+        if (!clientId) return;
+        await api.createInteraction(clientId, {
+            type: InteractionType.FOLLOW_UP_LOST,
+            observation: 'Follow-up marcado como perdido.',
+        });
+        await api.updateClient(clientId, { followUpState: FollowUpState.LOST });
+        if (shouldRefetch) fetchClient();
+    };
+    
+    const handleResolveAndSchedule = async (resolution: FollowUpResolution) => {
+        setIsResolveModalOpen(false);
+        if (!pendingFollowUpDate) return;
+
+        switch (resolution) {
+            case 'complete':
+                await handleCompleteFollowUp(false);
+                break;
+            case 'lost':
+                await handleMarkAsLost(false);
+                break;
+            case 'cancel':
+                await handleCancelFollowUp(false);
+                break;
+        }
+        await scheduleNewFollowUp(pendingFollowUpDate);
+        setPendingFollowUpDate(null);
     };
 
     const handleUpdateClient = async (updatedData: Omit<Client, 'id' | 'status' | 'interactions' | 'followUpState'>) => {
         if (!clientId) return;
-        await handleInteractionWrapper(() => api.updateClient(clientId, updatedData));
+        await api.updateClient(clientId, updatedData);
         setIsEditModalOpen(false);
+        fetchClient();
     };
 
     if (loading) return <div className="text-center p-8">Carregando cliente...</div>;
@@ -250,7 +264,7 @@ const ClientDetail: React.FC = () => {
                     <p className="text-gray-400">{client.phone}  &middot;  Origem: {client.source}</p>
                     
                     {/* Add Interaction Card */}
-                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-4">Adicionar Interação</h2>
                         <textarea
                             value={newInteractionText}
@@ -276,7 +290,7 @@ const ClientDetail: React.FC = () => {
                     </div>
                     
                     {/* Timeline Card */}
-                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-6">Linha do Tempo</h2>
                         <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2">
                            {client.interactions.map(interaction => (
@@ -288,7 +302,7 @@ const ClientDetail: React.FC = () => {
 
                 {/* Right Column: Actions & Info */}
                 <div className="space-y-8">
-                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-4">Ações</h2>
                         
                         {/* Status Change */}
@@ -320,10 +334,13 @@ const ClientDetail: React.FC = () => {
                                 <div className="space-y-3">
                                     <p className="text-sm text-red-400">Este follow-up está atrasado. Resolva antes de agendar um novo.</p>
                                     <div className="flex gap-3">
-                                        <button onClick={() => handleCompleteFollowUp()} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600/50 rounded-lg hover:bg-green-700/60">
+                                        <button onClick={() => handleCompleteFollowUp()} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600/50 rounded-lg hover:bg-green-700/60">
                                             <DoubleCheckIcon className="w-5 h-5" /> Concluir
                                         </button>
-                                        <button onClick={handleCancelFollowUp} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600/50 rounded-lg hover:bg-red-700/60">
+                                        <button onClick={() => handleMarkAsLost()} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-rose-600/50 rounded-lg hover:bg-rose-700/60">
+                                            <NoSymbolIcon className="w-5 h-5" /> Perdido
+                                        </button>
+                                        <button onClick={() => handleCancelFollowUp()} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600/50 rounded-lg hover:bg-red-700/60">
                                             <XIcon className="w-5 h-5" /> Cancelar
                                         </button>
                                     </div>
@@ -336,15 +353,29 @@ const ClientDetail: React.FC = () => {
                                         onChange={e => setFollowUpDateTime(e.target.value)}
                                         className="w-full p-2 bg-white/5 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                                     />
-                                    <button onClick={handleScheduleFollowUp} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-orange-600/80 rounded-lg hover:bg-orange-700/80 transition-colors">
+                                    <button onClick={handleManualSchedule} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-orange-600/80 rounded-lg hover:bg-orange-700/80 transition-colors">
                                         <CalendarIcon className="w-5 h-5" /> Agendar Follow-up
                                     </button>
+                                     <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={() => handleQuickSchedule(1)}
+                                            className="w-full text-center py-2 px-3 text-xs font-medium text-gray-300 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
+                                        >
+                                            Amanhã (9:00)
+                                        </button>
+                                        <button
+                                            onClick={() => handleQuickSchedule(7)}
+                                            className="w-full text-center py-2 px-3 text-xs font-medium text-gray-300 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
+                                        >
+                                            Daqui a 7 dias (9:00)
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     </div>
                     
-                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-4">Informações Adicionais</h2>
                         <div className="space-y-2 text-sm">
                             <p><strong className="text-gray-400">Produto:</strong> {client.product || 'N/A'}</p>
@@ -367,18 +398,13 @@ const ClientDetail: React.FC = () => {
                 onClose={() => setIsLogCallModalOpen(false)}
                 onSubmit={handleLoggedCallSubmit}
             />
-            <ConfirmationModal
-                isOpen={isConfirmModalOpen}
+            <ResolveFollowUpModal
+                isOpen={isResolveModalOpen}
                 onClose={() => {
-                    setIsConfirmModalOpen(false);
-                    setConfirmAction(null);
+                    setIsResolveModalOpen(false);
+                    setPendingFollowUpDate(null);
                 }}
-                onConfirm={handleConfirmFollowUpAndInteract}
-                onCancel={handleKeepFollowUpAndInteract}
-                title="Concluir Follow-up?"
-                message="Você tem um follow-up agendado para este cliente. Esta ação deve concluí-lo?"
-                confirmText="Sim, concluir"
-                cancelText="Não, manter agendado"
+                onResolve={handleResolveAndSchedule}
             />
         </div>
     );

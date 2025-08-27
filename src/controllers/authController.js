@@ -42,8 +42,10 @@ exports.login = async (req, res) => {
     return res.status(400).json({ message: 'Email e senha são obrigatórios.' });
   }
 
+  const processedEmail = email.trim().toLowerCase();
+
   try {
-    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [processedEmail]);
     if (rows.length === 0) {
       return res.status(401).json({ message: 'Credenciais inválidas.' });
     }
@@ -54,12 +56,13 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Credenciais inválidas.' });
     }
 
+    const dbPasswordHash = user.password_hash.trim();
     const hashedProvidedPassword = hashPassword(password);
-    let isMatch = (hashedProvidedPassword === user.password_hash);
+    let isMatch = (hashedProvidedPassword === dbPasswordHash);
 
     // --- GRACEFUL PASSWORD MIGRATION ---
     // If hash check fails, check for plaintext password match for legacy users.
-    if (!isMatch && password === user.password_hash) {
+    if (!isMatch && password === dbPasswordHash) {
         console.log(`Plaintext password detected for user ${email}. Upgrading hash...`);
         // If they match, securely upgrade the hash in the database.
         await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedProvidedPassword, user.id]);
@@ -104,8 +107,10 @@ exports.register = async (req, res) => {
         return res.status(400).json({ message: 'Cargo especificado é inválido.' });
     }
 
+    const processedEmail = email.trim().toLowerCase();
+
     try {
-        const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+        const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [processedEmail]);
         if (existingUser.rows.length > 0) {
             return res.status(409).json({ message: 'Usuário com este email já existe.' });
         }
@@ -114,7 +119,7 @@ exports.register = async (req, res) => {
 
         const { rows } = await db.query(
             'INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
-            [name, email, hashedPassword, role]
+            [name, processedEmail, hashedPassword, role]
         );
 
         res.status(201).json(convertObjectKeys(rows[0], snakeToCamel));

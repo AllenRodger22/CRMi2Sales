@@ -21,80 +21,31 @@
       }
     </script>
     <style>
-      .area {
-        background: #111827;
-        background: -webkit-linear-gradient(to bottom, #1f2937, #111827);
-        width: 100%;
-        height: 100vh;
+      body {
+        background-color: #111827; /* Default dark background */
+        font-family: 'Poppins', sans-serif;
+      }
+
+      #auth-background {
         position: fixed;
-        top: 0;
-        left: 0;
+        inset: 0;
         z-index: -1;
+        background-image: url('https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3');
+        background-size: cover;
+        background-position: center;
+        filter: blur(5px) brightness(0.5); /* Reduced blur for a 'slight' effect */
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+      }
+      
+      #auth-background.visible {
+        opacity: 1;
       }
 
-      .circles {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
+      .dashboard-background {
+        background-color: #111827;
       }
-
-      .circles li {
-        position: absolute;
-        display: block;
-        list-style: none;
-        width: 0;
-        height: 0;
-        border-left: 10px solid transparent;
-        border-right: 10px solid transparent;
-        border-bottom: 20px solid rgba(249, 115, 22, 0.4);
-        animation: animate 25s linear infinite;
-        bottom: -150px;
-      }
-
-      .circles li:nth-child(1){ left: 25%; width: 0; height: 0; border-left-width: 40px; border-right-width: 40px; border-bottom-width: 80px; animation-delay: 0s; }
-      .circles li:nth-child(2){ left: 10%; width: 0; height: 0; border-left-width: 10px; border-right-width: 10px; border-bottom-width: 20px; animation-delay: 2s; animation-duration: 12s; }
-      .circles li:nth-child(3){ left: 70%; width: 0; height: 0; border-left-width: 10px; border-right-width: 10px; border-bottom-width: 20px; animation-delay: 4s; }
-      .circles li:nth-child(4){ left: 40%; width: 0; height: 0; border-left-width: 30px; border-right-width: 30px; border-bottom-width: 60px; animation-delay: 0s; animation-duration: 18s; }
-      .circles li:nth-child(5){ left: 65%; width: 0; height: 0; border-left-width: 10px; border-right-width: 10px; border-bottom-width: 20px; animation-delay: 0s; }
-      .circles li:nth-child(6){ left: 75%; width: 0; height: 0; border-left-width: 55px; border-right-width: 55px; border-bottom-width: 110px; animation-delay: 3s; }
-      .circles li:nth-child(7){ left: 35%; width: 0; height: 0; border-left-width: 75px; border-right-width: 75px; border-bottom-width: 150px; animation-delay: 7s; }
-      .circles li:nth-child(8){ left: 50%; width: 0; height: 0; border-left-width: 12px; border-right-width: 12px; border-bottom-width: 25px; animation-delay: 15s; animation-duration: 45s; }
-      .circles li:nth-child(9){ left: 20%; width: 0; height: 0; border-left-width: 7px; border-right-width: 7px; border-bottom-width: 15px; animation-delay: 2s; animation-duration: 35s; }
-      .circles li:nth-child(10){ left: 85%; width: 0; height: 0; border-left-width: 75px; border-right-width: 75px; border-bottom-width: 150px; animation-delay: 0s; animation-duration: 11s; }
-      .circles li:nth-child(11){ left: 15%; width: 0; height: 0; border-left-width: 25px; border-right-width: 25px; border-bottom-width: 50px; animation-delay: 1s; animation-duration: 20s; border-bottom-color: rgba(251, 146, 60, 0.5); }
-      .circles li:nth-child(12){ left: 55%; width: 0; height: 0; border-left-width: 8px; border-right-width: 8px; border-bottom-width: 16px; animation-delay: 5s; animation-duration: 30s; }
-      .circles li:nth-child(13){ left: 80%; width: 0; height: 0; border-left-width: 35px; border-right-width: 35px; border-bottom-width: 70px; animation-delay: 8s; animation-duration: 15s; border-bottom-color: rgba(234, 88, 12, 0.3); }
-      .circles li:nth-child(14){ left: 5%; width: 0; height: 0; border-left-width: 50px; border-right-width: 50px; border-bottom-width: 100px; animation-delay: 6s; animation-duration: 22s; }
-      .circles li:nth-child(15){ left: 90%; width: 0; height: 0; border-left-width: 18px; border-right-width: 18px; border-bottom-width: 36px; animation-delay: 10s; animation-duration: 40s; border-bottom-color: rgba(251, 146, 60, 0.4); }
-      .circles li:nth-child(16){ left: 45%; width: 0; height: 0; border-left-width: 22px; border-right-width: 22px; border-bottom-width: 44px; animation-delay: 12s; }
-      .circles li:nth-child(17){ left: 30%; width: 0; height: 0; border-left-width: 60px; border-right-width: 60px; border-bottom-width: 120px; animation-delay: 9s; animation-duration: 28s; }
-      .circles li:nth-child(18){ left: 60%; width: 0; height: 0; border-left-width: 15px; border-right-width: 15px; border-bottom-width: 30px; animation-delay: 18s; animation-duration: 10s; border-bottom-color: rgba(234, 88, 12, 0.4); }
-      .circles li:nth-child(19){ left: 5%; width: 0; height: 0; border-left-width: 30px; border-right-width: 30px; border-bottom-width: 60px; animation-delay: 14s; animation-duration: 33s; }
-      .circles li:nth-child(20){ left: 95%; width: 0; height: 0; border-left-width: 40px; border-right-width: 40px; border-bottom-width: 80px; animation-delay: 7s; animation-duration: 14s; }
-      .circles li:nth-child(21){ left: 18%; width: 0; height: 0; border-left-width: 60px; border-right-width: 60px; border-bottom-width: 120px; animation-delay: 5s; animation-duration: 25s; }
-      .circles li:nth-child(22){ left: 82%; width: 0; height: 0; border-left-width: 45px; border-right-width: 45px; border-bottom-width: 90px; animation-delay: 11s; animation-duration: 22s; border-bottom-color: rgba(251, 146, 60, 0.45); }
-      .circles li:nth-child(23){ left: 58%; width: 0; height: 0; border-left-width: 80px; border-right-width: 80px; border-bottom-width: 160px; animation-delay: 1s; animation-duration: 19s; }
-      .circles li:nth-child(24){ left: 33%; width: 0; height: 0; border-left-width: 35px; border-right-width: 35px; border-bottom-width: 70px; animation-delay: 13s; animation-duration: 30s; border-bottom-color: rgba(234, 88, 12, 0.35); }
-      .circles li:nth-child(25){ left: 92%; width: 0; height: 0; border-left-width: 65px; border-right-width: 65px; border-bottom-width: 130px; animation-delay: 6s; animation-duration: 16s; }
-      .circles li:nth-child(26){ left: 8%; width: 0; height: 0; border-left-width: 50px; border-right-width: 50px; border-bottom-width: 100px; animation-delay: 17s; animation-duration: 26s; }
-      .circles li:nth-child(27){ left: 52%; width: 0; height: 0; border-left-width: 70px; border-right-width: 70px; border-bottom-width: 140px; animation-delay: 8s; animation-duration: 13s; border-bottom-color: rgba(249, 115, 22, 0.5); }
-      .circles li:nth-child(28){ left: 28%; width: 0; height: 0; border-left-width: 40px; border-right-width: 40px; border-bottom-width: 80px; animation-delay: 19s; animation-duration: 38s; }
-      .circles li:nth-child(29){ left: 78%; width: 0; height: 0; border-left-width: 90px; border-right-width: 90px; border-bottom-width: 180px; animation-delay: 4s; animation-duration: 21s; border-bottom-color: rgba(251, 146, 60, 0.3); }
-      .circles li:nth-child(30){ left: 48%; width: 0; height: 0; border-left-width: 55px; border-right-width: 55px; border-bottom-width: 110px; animation-delay: 16s; animation-duration: 29s; }
-
-      @keyframes animate {
-        0% {
-          transform: translateY(0) rotate(0deg);
-          opacity: 1;
-        }
-        100% {
-          transform: translateY(-1000px) rotate(720deg);
-          opacity: 0;
-        }
-      }
+      
     </style>
   <script type="importmap">
 {
@@ -103,46 +54,15 @@
     "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.8.2",
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "react": "https://aistudiocdn.com/react@^19.1.1",
-    "recharts": "https://aistudiocdn.com/recharts@^3.1.2"
+    "recharts": "https://aistudiocdn.com/recharts@^3.1.2",
+    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
+    "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^3.8.2"
   }
 }
 </script>
 </head>
   <body>
-    <div class="area" >
-      <ul class="circles">
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-      </ul>
-    </div >
+    <div id="auth-background"></div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

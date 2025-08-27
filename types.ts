@@ -34,6 +34,7 @@ export enum FollowUpState {
   DELAYED = 'Atrasado',
   COMPLETED = 'Concluido',
   CANCELED = 'Cancelado',
+  LOST = 'Perdido',
 }
 
 
@@ -46,6 +47,7 @@ export enum InteractionType {
   FOLLOW_UP_SCHEDULED = 'Follow-up Agendado',
   FOLLOW_UP_COMPLETED = 'Follow-up Concluído',
   FOLLOW_UP_CANCELED = 'Follow-up Cancelado',
+  FOLLOW_UP_LOST = 'Follow-up Perdido',
   CLIENT_CREATED = 'Cliente Cadastrado',
   AUDIO = 'Áudio Enviado',
   INSECURE = 'Cliente Inseguro'

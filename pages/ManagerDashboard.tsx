@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Funnel from '../components/Funnel';
 import LineChart from '../components/LineChart';
 import BreakdownTable from '../components/BreakdownTable';
@@ -73,10 +73,40 @@ const ManagerDashboard: React.FC = () => {
         fetchData();
     }, [dateRange, selectedBrokerId]);
 
+    const chartData = useMemo(() => {
+        if (!productivityData) return [];
+        // The API returns dates as 'YYYY-MM-DD'. We parse manually to avoid timezone issues.
+        return productivityData.timeseries.daily.map(d => {
+            if (!d.date || typeof d.date !== 'string') {
+                return { ...d, date: 'Inválido' };
+            }
+            
+            const datePart = d.date.split('T')[0];
+            const parts = datePart.split('-');
+
+            if (parts.length !== 3) {
+                return { ...d, date: 'Inválido' };
+            }
+
+            const [year, month, day] = parts.map(Number);
+            // Month is 0-indexed in new Date()
+            const dateObj = new Date(year, month - 1, day);
+
+            if (isNaN(dateObj.getTime())) {
+                 return { ...d, date: 'Inválido' };
+            }
+
+            return {
+                ...d,
+                date: dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+            };
+        });
+    }, [productivityData]);
+
     const ManagerKpiCard: React.FC<{title: string, value: string | number}> = ({ title, value }) => (
-        <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg flex flex-col justify-between h-full">
+        <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl flex flex-col justify-between h-full">
             <h2 className="text-sm sm:text-base font-bold text-gray-300">{title}</h2>
-            <p className="text-3xl sm:text-4xl font-extrabold mt-2 text-white break-words">
+            <p className="text-2xl sm:text-3xl font-extrabold mt-2 text-white break-all leading-tight">
                 {value}
             </p>
         </div>
@@ -86,8 +116,8 @@ const ManagerDashboard: React.FC = () => {
         <>
             <div className="p-4 sm:p-6 lg:p-8">
                 <div className="space-y-8">
-                    <div id="productivity-section">
-                        <h1 className="text-3xl font-bold text-white mb-2">Produtividade do Time</h1>
+                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                        <h1 className="text-3xl font-bold text-white mb-4">Produtividade do Time</h1>
                         <FiltersBar 
                             dateRangeLabel={formatDateRange(dateRange)}
                             onDateRangeClick={() => setIsDatePickerOpen(true)}
@@ -113,13 +143,13 @@ const ManagerDashboard: React.FC = () => {
                     <div id="bi-section" className="mt-8 pt-8 border-t border-white/10">
                         <h1 className="text-3xl font-bold text-white mb-8">Dashboard de BI</h1>
                         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                            <div className="xl:col-span-2 p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                            <div className="xl:col-span-2 p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
                                 <h2 className="text-xl font-bold text-white mb-4">Análise Temporal</h2>
                                 {loading || !productivityData ? <div className="text-center p-8">Carregando gráfico...</div> : (
-                                    <LineChart data={productivityData.timeseries.daily} />
+                                    <LineChart data={chartData} />
                                 )}
                             </div>
-                            <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                            <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
                                 <h2 className="text-xl font-bold text-white mb-4">Funil de Vendas</h2>
                                 {loading || !funnelAnalyticsData ? <div className="text-center p-8">Carregando funil...</div> : (
                                     <Funnel data={funnelAnalyticsData} />
@@ -130,7 +160,7 @@ const ManagerDashboard: React.FC = () => {
 
                      <div id="breakdown-section" className="mt-8 pt-8 border-t border-white/10">
                          <h1 className="text-2xl font-bold text-white mb-6">Detalhamento</h1>
-                         <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                         <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
                             {loading || !productivityData ? <div className="text-center p-8">Carregando detalhamento...</div> : (
                                 <Tabs>
                                     <div data-label="Por Origem">

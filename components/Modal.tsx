@@ -1,4 +1,3 @@
-
 import React, { ReactNode } from 'react';
 import { XIcon } from './Icons';
 
@@ -18,7 +17,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-lg p-4 sm:p-6 rounded-2xl bg-gray-900/80 backdrop-blur-xl border border-white/20 shadow-lg text-white relative"
+        className="w-full max-w-lg p-4 sm:p-6 rounded-2xl bg-gray-900/70 backdrop-blur-2xl border border-white/15 shadow-lg text-white relative"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">

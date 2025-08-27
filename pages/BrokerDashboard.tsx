@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import KpiCard from '../components/KpiCard';
 import ClientTable from '../components/ClientTable';
-import { PlusIcon, UploadIcon, DownloadIcon } from '../components/Icons';
+import { PlusIcon, UploadIcon, DownloadIcon, ChevronDownIcon } from '../components/Icons';
 import ClientFormModal from '../components/AddClientModal';
 import ImportCsvModal from '../components/ImportCsvModal';
 import DateRangePickerModal from '../components/DateRangePickerModal';
@@ -9,6 +9,9 @@ import { ClientStatus, Client, Kpi, ProductivityData, InteractionType, FollowUpS
 import SearchBar from '../components/SearchBar';
 import FiltersBar from '../components/FiltersBar';
 import * as api from '../services/mockApi';
+import { useAuth } from '../hooks/useAuth';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const productivityKpiColors: Record<keyof ProductivityData['kpis'], string> = {
     ligacoes: 'text-white',
@@ -47,6 +50,7 @@ const formatDateForApi = (date: Date) => {
 
 
 const BrokerDashboard: React.FC = () => {
+    const { user } = useAuth();
     const [clients, setClients] = useState<Client[]>([]);
     const [brokerKpis, setBrokerKpis] = useState<Kpi[]>([]);
     const [productivityData, setProductivityData] = useState<ProductivityData | null>(null);
@@ -58,6 +62,8 @@ const BrokerDashboard: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [dateRange, setDateRange] = useState(getInitialDateRange());
+    const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+    const exportMenuRef = useRef<HTMLDivElement>(null);
     
     const fetchClients = async () => {
         setLoading(true);
@@ -111,17 +117,32 @@ const BrokerDashboard: React.FC = () => {
         fetchProductivity();
     }, [dateRange]);
 
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+                setIsExportMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
 
     const handleAddClient = async (clientData: Omit<Client, 'id' | 'interactions'>) => {
         try {
             await api.createClient({ ...clientData, status: ClientStatus.FIRST_CONTACT });
-            setIsAddClientModalOpen(false);
-            // Re-fetch by clearing filters, which triggers the useEffect
-            setSearchQuery('');
-            setStatusFilter('');
+            // If filters are active, clearing them will trigger the useEffect to refetch.
+            // Otherwise, we need to trigger the fetch manually.
+            if (searchQuery || statusFilter) {
+                setSearchQuery('');
+                setStatusFilter('');
+            } else {
+                fetchClients();
+            }
         } catch (err) {
             alert('Falha ao adicionar cliente.');
             console.error(err);
+            throw err; // Re-throw error so the modal can handle it
         }
     };
     
@@ -155,9 +176,14 @@ const BrokerDashboard: React.FC = () => {
          if (window.confirm('Tem certeza que deseja excluir este cliente permanentemente?')) {
             try {
                 await api.deleteClientApi(clientId);
-                // Re-fetch by clearing filters
-                setSearchQuery('');
-                setStatusFilter('');
+                // If filters are active, clearing them will trigger the useEffect to refetch.
+                // Otherwise, we need to trigger the fetch manually.
+                if (searchQuery || statusFilter) {
+                    setSearchQuery('');
+                    setStatusFilter('');
+                } else {
+                    fetchClients();
+                }
             } catch (err) {
                 alert('Falha ao excluir cliente.');
                 console.error(err);
@@ -165,37 +191,95 @@ const BrokerDashboard: React.FC = () => {
         }
     };
 
-    const handleImportClients = async (file: File) => {
-        const formData = new FormData();
-        formData.append('file', file);
+    const handleImportClients = async (file: File, mapping: Record<string, string>) => {
         try {
-            const result = await api.importClients(formData);
+            const result = await api.importClients(file, mapping);
             alert(`${result.imported} clientes importados, ${result.skipped} ignorados.`);
             setIsImportModalOpen(false);
-            // Re-fetch by clearing filters
-            setSearchQuery('');
-            setStatusFilter('');
-        } catch (err) {
-            alert('Falha ao importar clientes.');
+            // If filters are active, clearing them will trigger the useEffect to refetch.
+            // Otherwise, we need to trigger the fetch manually.
+            if (searchQuery || statusFilter) {
+                setSearchQuery('');
+                setStatusFilter('');
+            } else {
+                fetchClients();
+            }
+        } catch (err: any) {
+            alert(err.message || 'Falha ao importar clientes.');
             console.error(err);
         }
     };
 
-    const handleExport = async () => {
+    const handleExportCsv = async () => {
+        setIsExportMenuOpen(false);
         try {
             const blob = await api.exportClients();
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
+
+            const toSnakeCase = (str: string | undefined) =>
+                str
+                    ? str
+                        .trim()
+                        .toLowerCase()
+                        .replace(/\s+/g, '_')
+                    : 'export';
+
+            const userNameSnakeCase = toSnakeCase(user?.name);
+            const exportDate = new Date().toISOString().split('T')[0];
+            const filename = `${userNameSnakeCase}_${exportDate}.csv`;
+
             link.setAttribute('href', url);
-            link.setAttribute('download', 'clientes_export.csv');
+            link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
         } catch (err) {
-            alert('Falha ao exportar clientes.');
+            alert('Falha ao exportar clientes para CSV.');
             console.error(err);
         }
+    };
+    
+    const handleExportPdf = () => {
+        setIsExportMenuOpen(false);
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.text('Relatório de Clientes', 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Corretor: ${user?.name || 'N/A'}`, 14, 30);
+        doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 14, 36);
+
+        const tableColumn = ["Nome", "Número", "Origem", "Status"];
+        const tableRows: (string | null | undefined)[][] = [];
+
+        filteredClients.forEach(client => {
+            const clientData = [
+                client.name,
+                client.phone,
+                client.source,
+                client.status,
+            ];
+            tableRows.push(clientData);
+        });
+
+        (doc as any).autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 50,
+            theme: 'striped',
+            headStyles: { fillColor: [234, 88, 12] }, // Orange color
+        });
+        
+        const toSnakeCase = (str: string | undefined) =>
+            str ? str.trim().toLowerCase().replace(/\s+/g, '_') : 'export';
+        const userNameSnakeCase = toSnakeCase(user?.name);
+        const exportDate = new Date().toISOString().split('T')[0];
+        const filename = `${userNameSnakeCase}_${exportDate}.pdf`;
+
+        doc.save(filename);
     };
 
     const handleFilterClick = (kpiTitle: string) => {
@@ -246,8 +330,8 @@ const BrokerDashboard: React.FC = () => {
                     ))}
                 </div>
 
-                <div id="productivity-section">
-                     <h2 className="text-2xl font-bold text-white mb-2">Minha Produtividade</h2>
+                <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                     <h2 className="text-2xl font-bold text-white mb-4">Minha Produtividade</h2>
                     <FiltersBar 
                         dateRangeLabel={formatDateRange(dateRange)}
                         onDateRangeClick={() => setIsDatePickerOpen(true)}
@@ -255,7 +339,7 @@ const BrokerDashboard: React.FC = () => {
                     {!productivityData ? <div className="text-center p-8">Carregando KPIs...</div> : (
                         <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
                             {(Object.keys(productivityData.kpis) as Array<keyof ProductivityData['kpis']>).map(key => (
-                                <div key={key} className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg flex flex-col justify-between h-full">
+                                <div key={key} className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-lg flex flex-col justify-between h-full">
                                     <h3 className="text-sm sm:text-base font-bold text-gray-300">{productivityKpiTitles[key]}</h3>
                                     <p className={`text-3xl sm:text-4xl font-extrabold mt-2 ${productivityKpiColors[key]}`}>
                                         {productivityData.kpis[key]}
@@ -266,7 +350,7 @@ const BrokerDashboard: React.FC = () => {
                     )}
                 </div>
 
-                <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg space-y-4 md:space-y-0 md:flex md:items-center md:justify-between md:gap-4">
+                <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl space-y-4 md:space-y-0 md:flex md:items-center md:justify-between md:gap-4">
                     <div className="flex-grow">
                          <SearchBar onSearch={setSearchQuery} />
                     </div>
@@ -289,16 +373,36 @@ const BrokerDashboard: React.FC = () => {
                         >
                             <UploadIcon className="w-5 h-5" /> Importar
                         </button>
-                         <button 
-                            onClick={handleExport}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600/50 rounded-lg hover:bg-green-700/60 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900"
-                        >
-                            <DownloadIcon className="w-5 h-5" /> Exportar
-                        </button>
+                        <div className="relative" ref={exportMenuRef}>
+                            <button 
+                                onClick={() => setIsExportMenuOpen(prev => !prev)}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600/50 rounded-lg hover:bg-green-700/60 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+                            >
+                                <DownloadIcon className="w-5 h-5" />
+                                <span>Exportar</span>
+                                <ChevronDownIcon className="w-4 h-4" />
+                            </button>
+                            {isExportMenuOpen && (
+                                <div className="absolute right-0 mt-2 w-48 bg-gray-800/90 backdrop-blur-xl border border-white/15 rounded-lg shadow-lg z-10">
+                                    <button
+                                        onClick={handleExportCsv}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-white/10"
+                                    >
+                                        Exportar para CSV
+                                    </button>
+                                    <button
+                                        onClick={handleExportPdf}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-white/10"
+                                    >
+                                        Exportar para PDF (Visão Atual)
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+                <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
                     <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                         <h2 className="text-xl font-bold text-white">Lista de Clientes</h2>
                         <button 

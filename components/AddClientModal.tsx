@@ -7,7 +7,7 @@ type ClientFormData = Omit<Client, 'id' | 'status' | 'interactions' | 'followUpS
 interface ClientFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (clientData: ClientFormData) => void;
+  onSubmit: (clientData: ClientFormData) => Promise<void>;
   client?: Client; // Make client optional for add/edit functionality
 }
 
@@ -21,6 +21,7 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClose, onSu
     product: '',
     propertyValue: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditMode = !!client;
 
@@ -48,13 +49,21 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClose, onSu
     setFormData(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.phone || !formData.source) {
       alert('Nome, Número e Origem são obrigatórios.');
       return;
     }
-    onSubmit(formData);
+    setIsSubmitting(true);
+    try {
+        await onSubmit(formData);
+        onClose(); // Close on success
+    } catch (err) {
+        // Error is alerted by parent, modal remains open
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const inputClass = "appearance-none relative block w-full px-3 py-3 bg-white/5 border border-white/20 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm";
@@ -94,8 +103,12 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClose, onSu
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-300 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">
                 Cancelar
             </button>
-            <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors">
-                {isEditMode ? 'Salvar Alterações' : 'Salvar Cliente'}
+            <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors disabled:bg-orange-800 disabled:cursor-not-allowed"
+            >
+                {isSubmitting ? 'Salvando...' : (isEditMode ? 'Salvar Alterações' : 'Salvar Cliente')}
             </button>
         </div>
       </form>

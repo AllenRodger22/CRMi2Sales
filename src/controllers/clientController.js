@@ -51,7 +51,23 @@ exports.upload = multer({ storage: multer.memoryStorage() });
 
 // POST /clients/import
 exports.importClients = async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+  if (!req.file) return res.status(400).json({ message: 'Nenhum arquivo enviado.' });
+  if (!req.body.mapping) return res.status(400).json({ message: 'Mapeamento de colunas não fornecido.' });
+
+  let mapping;
+  try {
+    mapping = JSON.parse(req.body.mapping);
+  } catch (e) {
+    return res.status(400).json({ message: 'Mapeamento de colunas inválido.' });
+  }
+
+  const requiredDbFields = ['name', 'phone', 'source'];
+  const mappedDbFields = Object.values(mapping);
+  for (const field of requiredDbFields) {
+    if (!mappedDbFields.includes(field)) {
+      return res.status(400).json({ message: `O campo obrigatório '${field}' não foi mapeado.` });
+    }
+  }
 
   const ownerId = req.user.id;
   const clientsToImport = [];
@@ -59,37 +75,51 @@ exports.importClients = async (req, res) => {
 
   csv
     .parseStream(stream, { headers: true })
-    .on('error', (error) => res.status(400).json({ error: 'Erro ao processar CSV.', details: error.message }))
+    .on('error', (error) => res.status(400).json({ message: 'Erro ao processar CSV.', details: error.message }))
     .on('data', (row) => clientsToImport.push(row))
     .on('end', async () => {
       let importedCount = 0;
       let skippedCount = 0;
+      
+      const reverseMapping = {};
+      for (const key in mapping) {
+        reverseMapping[mapping[key]] = key;
+      }
 
       const client = await db.pool.connect();
       try {
         await client.query('BEGIN');
 
         for (const row of clientsToImport) {
+          const name = row[reverseMapping.name];
+          const phone = row[reverseMapping.phone];
+          const source = row[reverseMapping.source];
+
+          if (!name || !phone || !source) {
+            skippedCount++;
+            continue;
+          }
+
           try {
             await client.query(
               `INSERT INTO clients
-               (name, phone, email, source, status, owner_id, observations, product, property_value)
+               (name, phone, source, email, status, owner_id, observations, product, property_value)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
               [
-                row.name ?? null,
-                row.phone ?? null,
-                row.email ?? null,
-                row.source ?? null,
-                row.status ?? 'Primeiro Atendimento',
+                name,
+                phone,
+                source,
+                row[reverseMapping.email] ?? null,
+                'Primeiro Atendimento',
                 ownerId,
-                row.observations ?? null,
-                row.product ?? null,
-                parseCurrency(row.property_value) ?? null,
+                row[reverseMapping.observations] ?? null,
+                row[reverseMapping.product] ?? null,
+                parseCurrency(row[reverseMapping.propertyValue]) ?? null,
               ]
             );
             importedCount++;
           } catch (e) {
-            console.warn('Skipping row due to error:', row, e.message);
+            console.warn('Skipping row due to insert error:', row, e.message);
             skippedCount++;
           }
         }
@@ -99,7 +129,7 @@ exports.importClients = async (req, res) => {
       } catch (error) {
         await client.query('ROLLBACK');
         console.error('Database error during import:', error);
-        return res.status(500).json({ error: 'Erro de banco de dados durante a importação.' });
+        return res.status(500).json({ message: 'Erro de banco de dados durante a importação.' });
       } finally {
         client.release();
       }
@@ -109,7 +139,28 @@ exports.importClients = async (req, res) => {
 // GET /clients/export
 exports.exportClients = async (req, res) => {
   const { id: ownerId, role } = req.user;
-  const filename = `export_clients_${new Date().toISOString().split('T')[0]}.csv`;
+
+  let userName;
+  try {
+      const userRes = await db.query('SELECT name FROM users WHERE id = $1', [ownerId]);
+      if (userRes.rows.length > 0) {
+          userName = userRes.rows[0].name;
+      }
+  } catch(e) {
+      console.error("Could not fetch user's name for export, using default.", e);
+  }
+  
+  const toSnakeCase = (str) =>
+    str
+        ? str
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, '_')
+        : 'export';
+
+  const userNameSnakeCase = toSnakeCase(userName);
+  const exportDate = new Date().toISOString().split('T')[0];
+  const filename = `${userNameSnakeCase}_${exportDate}.csv`;
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -252,7 +303,7 @@ exports.updateClient = async (req, res) => {
   const fields = req.body;
 
   if (Object.keys(fields).length === 0) {
-    return res.status(400).json({ error: 'Request body cannot be empty.' });
+    return res.status(400).json({ error: 'O corpo da requisição não pode estar vazio.' });
   }
   
   try {
@@ -275,10 +326,11 @@ exports.updateClient = async (req, res) => {
 
         const validTransitions = {
           'Sem Follow Up': ['Ativo'],
-          'Ativo': ['Atrasado', 'Concluido', 'Cancelado'],
-          'Atrasado': ['Ativo'],
+          'Ativo': ['Atrasado', 'Concluido', 'Cancelado', 'Perdido'],
+          'Atrasado': ['Ativo', 'Concluido', 'Cancelado', 'Perdido'],
           'Concluido': ['Ativo'],
           'Cancelado': ['Ativo'],
+          'Perdido': ['Ativo'],
         };
         
         const allowedTransitions = validTransitions[currentFollowUpState];
