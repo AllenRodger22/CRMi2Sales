@@ -75,7 +75,15 @@ const Router: React.FC = () => {
 };
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, isInitializing } = useAuth();
+
+  // If the authentication state is still being determined, don't render anything.
+  // The parent AppContent component will show a global loading indicator.
+  // This prevents a premature redirect to /login before the session is fully checked.
+  if (isInitializing) {
+    return null;
+  }
+  
   if (!user) {
     return <ReactRouterDOM.Navigate to="/login" />;
   }

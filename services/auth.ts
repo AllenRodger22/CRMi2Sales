@@ -13,12 +13,15 @@ export async function login(email: string, password: string) {
 
 /**
  * Signs in the user using Google OAuth with a redirect flow.
- * The redirect URL is now managed solely by the 'Site URL' setting in the Supabase dashboard
- * under Authentication > URL Configuration.
+ * An explicit redirectTo is provided to ensure consistent behavior, especially on mobile.
  */
 export async function loginWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/#/dashboard`,
+      queryParams: { prompt: 'select_account' }
+    }
   });
   if (error) throw error;
 }
