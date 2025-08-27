@@ -6,7 +6,7 @@ const Header: React.FC = () => {
     const { user, logout } = useAuth();
 
     return (
-        <header className="flex-shrink-0 bg-gray-900/50 backdrop-blur-lg border-b border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between">
+        <header className="flex-shrink-0 bg-gray-900/30 backdrop-blur-2xl border-b border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between">
             <div className="flex-1">
                 {/* This space is intentionally left for potential future use like breadcrumbs */}
             </div>

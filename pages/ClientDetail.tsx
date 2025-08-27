@@ -264,7 +264,7 @@ const ClientDetail: React.FC = () => {
                     <p className="text-gray-400">{client.phone}  &middot;  Origem: {client.source}</p>
                     
                     {/* Add Interaction Card */}
-                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                    <div className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-4">Adicionar Interação</h2>
                         <textarea
                             value={newInteractionText}
@@ -290,7 +290,7 @@ const ClientDetail: React.FC = () => {
                     </div>
                     
                     {/* Timeline Card */}
-                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                    <div className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-6">Linha do Tempo</h2>
                         <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2">
                            {client.interactions.map(interaction => (
@@ -302,7 +302,7 @@ const ClientDetail: React.FC = () => {
 
                 {/* Right Column: Actions & Info */}
                 <div className="space-y-8">
-                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                    <div className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-4">Ações</h2>
                         
                         {/* Status Change */}
@@ -375,7 +375,7 @@ const ClientDetail: React.FC = () => {
                         </div>
                     </div>
                     
-                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                    <div className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-4">Informações Adicionais</h2>
                         <div className="space-y-2 text-sm">
                             <p><strong className="text-gray-400">Produto:</strong> {client.product || 'N/A'}</p>

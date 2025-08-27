@@ -104,7 +104,7 @@ const ManagerDashboard: React.FC = () => {
     }, [productivityData]);
 
     const ManagerKpiCard: React.FC<{title: string, value: string | number}> = ({ title, value }) => (
-        <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl flex flex-col justify-between h-full">
+        <div className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl flex flex-col justify-between h-full">
             <h2 className="text-sm sm:text-base font-bold text-gray-300">{title}</h2>
             <p className="text-2xl sm:text-3xl font-extrabold mt-2 text-white break-all leading-tight">
                 {value}
@@ -116,7 +116,7 @@ const ManagerDashboard: React.FC = () => {
         <>
             <div className="p-4 sm:p-6 lg:p-8">
                 <div className="space-y-8">
-                    <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                    <div className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl">
                         <h1 className="text-3xl font-bold text-white mb-4">Produtividade do Time</h1>
                         <FiltersBar 
                             dateRangeLabel={formatDateRange(dateRange)}
@@ -143,13 +143,13 @@ const ManagerDashboard: React.FC = () => {
                     <div id="bi-section" className="mt-8 pt-8 border-t border-white/10">
                         <h1 className="text-3xl font-bold text-white mb-8">Dashboard de BI</h1>
                         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                            <div className="xl:col-span-2 p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                            <div className="xl:col-span-2 p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl">
                                 <h2 className="text-xl font-bold text-white mb-4">Análise Temporal</h2>
                                 {loading || !productivityData ? <div className="text-center p-8">Carregando gráfico...</div> : (
                                     <LineChart data={chartData} />
                                 )}
                             </div>
-                            <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                            <div className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl">
                                 <h2 className="text-xl font-bold text-white mb-4">Funil de Vendas</h2>
                                 {loading || !funnelAnalyticsData ? <div className="text-center p-8">Carregando funil...</div> : (
                                     <Funnel data={funnelAnalyticsData} />
@@ -160,7 +160,7 @@ const ManagerDashboard: React.FC = () => {
 
                      <div id="breakdown-section" className="mt-8 pt-8 border-t border-white/10">
                          <h1 className="text-2xl font-bold text-white mb-6">Detalhamento</h1>
-                         <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                         <div className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl">
                             {loading || !productivityData ? <div className="text-center p-8">Carregando detalhamento...</div> : (
                                 <Tabs>
                                     <div data-label="Por Origem">

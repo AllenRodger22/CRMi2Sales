@@ -38,7 +38,7 @@ const RegisterPage: React.FC = () => {
 
     return (
         <div className="flex items-center justify-center min-h-screen p-4">
-            <div className="w-full max-w-md p-6 sm:p-8 space-y-8 rounded-2xl bg-gray-900/60 backdrop-blur-xl border border-white/15 shadow-2xl">
+            <div className="w-full max-w-md p-6 sm:p-8 space-y-8 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl">
                 <div>
                     <h2 className="text-center text-2xl sm:text-3xl font-extrabold text-white">
                         Criar Nova Conta

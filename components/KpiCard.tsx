@@ -9,9 +9,9 @@ interface KpiCardProps {
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({ title, value, color, onClick, isActive }) => {
-  const baseClasses = "p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl flex flex-col justify-between h-full transition-all duration-200";
+  const baseClasses = "p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl flex flex-col justify-between h-full transition-all duration-200";
   const activeClasses = "ring-2 ring-orange-500 border-orange-400/30 scale-105";
-  const hoverClasses = "hover:bg-white/10 hover:border-white/20";
+  const hoverClasses = "hover:bg-gray-900/50 hover:border-white/20";
   
   return (
     <button 

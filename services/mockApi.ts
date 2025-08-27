@@ -2,31 +2,14 @@
 // Troque o nome do arquivo se preferir manter "apimock.ts"
 
 // ====== TYPES (ajuste se seus tipos já existirem em ../types) ======
-export type Role = 'BROKER' | 'MANAGER' | 'ADMIN';
+// FIX: Removed local type definitions and imported them from the central types file.
+import {
+  Role,
+  User,
+  ProductivityData,
+  FunnelAnalyticsData,
+} from '../types';
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-}
-
-export interface KPI {
-  ligacoes: number; ce: number; tratativas: number; documentacao: number; vendas: number;
-}
-
-export interface ProductivityData {
-  kpis: KPI;
-  managerKpis?: KPI;
-  timeseries: { daily: Array<{ date: string; ligacoes?: number; ce?: number; tratativas?: number; documentacao?: number; vendas?: number }> };
-  breakdown: { porOrigem: any[]; porBroker: any[] };
-  brokers: Array<{ id: string; name: string }>;
-}
-
-export interface FunnelAnalyticsData {
-  funnel: Array<{ stage: string; count: number }>;
-  conversionRates: Record<string, number>;
-}
 
 // ====== CONFIG ======
 const API_BASE_URL =

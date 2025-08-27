@@ -330,7 +330,7 @@ const BrokerDashboard: React.FC = () => {
                     ))}
                 </div>
 
-                <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                <div className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl">
                      <h2 className="text-2xl font-bold text-white mb-4">Minha Produtividade</h2>
                     <FiltersBar 
                         dateRangeLabel={formatDateRange(dateRange)}
@@ -339,7 +339,7 @@ const BrokerDashboard: React.FC = () => {
                     {!productivityData ? <div className="text-center p-8">Carregando KPIs...</div> : (
                         <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
                             {(Object.keys(productivityData.kpis) as Array<keyof ProductivityData['kpis']>).map(key => (
-                                <div key={key} className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-lg flex flex-col justify-between h-full">
+                                <div key={key} className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-lg flex flex-col justify-between h-full">
                                     <h3 className="text-sm sm:text-base font-bold text-gray-300">{productivityKpiTitles[key]}</h3>
                                     <p className={`text-3xl sm:text-4xl font-extrabold mt-2 ${productivityKpiColors[key]}`}>
                                         {productivityData.kpis[key]}
@@ -350,7 +350,7 @@ const BrokerDashboard: React.FC = () => {
                     )}
                 </div>
 
-                <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl space-y-4 md:space-y-0 md:flex md:items-center md:justify-between md:gap-4">
+                <div className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl space-y-4 md:space-y-0 md:flex md:items-center md:justify-between md:gap-4">
                     <div className="flex-grow">
                          <SearchBar onSearch={setSearchQuery} />
                     </div>
@@ -402,7 +402,7 @@ const BrokerDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 shadow-2xl">
+                <div className="p-4 sm:p-6 rounded-2xl bg-gray-900/30 backdrop-blur-2xl border border-white/10 shadow-2xl">
                     <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                         <h2 className="text-xl font-bold text-white">Lista de Clientes</h2>
                         <button 
