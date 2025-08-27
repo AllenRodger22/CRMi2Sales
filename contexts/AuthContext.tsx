@@ -65,12 +65,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // CRITICAL STEP 2: Handle the specific post-OAuth redirect case.
           // This logic runs only once, right after returning from Google.
           if (event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {
-              if (DEBUG_AUTH) console.log('[Auth] OAuth callback detected. Cleaning URL and navigating.');
+              if (DEBUG_AUTH) console.log('[Auth] OAuth callback detected. Navigating to dashboard.');
               
-              // Clean the Supabase token from the URL without reloading.
-              window.history.replaceState(null, '', window.location.pathname);
-              
-              // Navigate to the dashboard using the HashRouter's mechanism.
+              // Atomically replace the auth hash with the dashboard route hash.
+              // This prevents an intermediate state where the hash is empty, which
+              // would cause the HashRouter to redirect to the login page.
               window.location.hash = '/dashboard';
           }
         } else {
