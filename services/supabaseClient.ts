@@ -13,8 +13,10 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
+    flowType: 'pkce',
     persistSession: true,
     autoRefreshToken: true,
-    flowType: 'pkce',
+    // ⚠️ Força a MESMA chave de armazenamento em app e callback
+    storageKey: 'sb-i2sales-auth',
   },
 });

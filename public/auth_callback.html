@@ -1,43 +1,46 @@
-<!-- public/auth_callback.html -->
 <!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Auth Callback</title>
 </head>
 <body>
-  <p>Finalizando login…</p>
+  <pre id="log" style="font-family:monospace;padding:12px">Finalizando login…</pre>
   <script type="module">
+    const log = (...a) => (document.getElementById('log').textContent += "\n" + a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' '), console.log(...a));
+
+    // ✅ Use os MESMOS valores do app (ou injete via placeholder e build)
+    const SUPABASE_URL  = 'https://pahyskuhfgequzsvafmq.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhaHlza3VoZmdlcXV6c3ZhZm1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyODU4OTcsImV4cCI6MjA3MTg2MTg5N30.ZA9xm4JI1wXIbLsgm0Ve1vuFqyryhEE3f0HzTNvka4Q';
+
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-    // ✅ Use sua URL e ANON KEY aqui (ANON é seguro no front)
-    const supabaseUrl = 'https://pahyskuhfgequzsvafmq.supabase.co';
-    const supabaseAnon = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhaHlza3VoZmdlcXV6c3ZhZm1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyODU4OTcsImV4cCI6MjA3MTg2MTg5N30.ZA9xm4JI1wXIbLsgm0Ve1vuFqyryhEE3f0HzTNvka4Q';
-
-    const supabase = createClient(supabaseUrl, supabaseAnon, {
-      auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true }
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+      auth: {
+        flowType: 'pkce',
+        persistSession: true,
+        autoRefreshToken: true,
+        storageKey: 'sb-i2sales-auth', // ⚠️ igual ao do app
+      },
     });
 
-    // A lib detecta ?code=... e troca por sessão automaticamente.
-    // Só precisamos esperar e redirecionar.
-    (async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
+    // 1) Trocar ?code por sessão
+    try {
+      log('[cb] href', window.location.href);
+      const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+      if (error) { log('[cb] exchange error', error.message); throw error; }
+      log('[cb] exchange ok, has user?', !!data.session?.user);
 
-        if (data.session?.user) {
-          // sucesso: manda pro dashboard da sua SPA com HashRouter
-          location.replace('/#/dashboard');
-        } else {
-          // sem sessão (ex.: code inválido/expirado) → volta pro login
-          location.replace('/#/login');
-        }
-      } catch (e) {
-        console.error('Callback error:', e);
-        location.replace('/#/login');
-      }
-    })();
+      // 2) Sanity: ler sessão imediatamente
+      const now = await supabase.auth.getSession();
+      log('[cb] getSession after exchange user?', !!now.data.session?.user, now.data.session?.user?.email || '');
+
+      // 3) Redirecionar
+      location.replace('/#/dashboard');
+    } catch (e) {
+      log('[cb] FAIL', e?.message || e);
+      location.replace('/#/login');
+    }
   </script>
 </body>
 </html>
