@@ -1,4 +1,3 @@
-
 // services/auth.ts
 import { supabase } from './supabaseClient';
 import { Role } from '../types';
@@ -13,14 +12,14 @@ export async function login(email: string, password: string) {
 }
 
 /**
- * Signs in the user using Google OAuth with a redirect flow.
- * An explicit redirectTo is provided for HashRouter compatibility.
+ * Signs in the user using Google OAuth with the PKCE redirect flow.
+ * It redirects to a dedicated callback page to handle the code exchange.
  */
 export async function loginWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/#/`,
+      redirectTo: `${window.location.origin}/auth_callback.html`,
       queryParams: { prompt: 'select_account' }
     }
   });

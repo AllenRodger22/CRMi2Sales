@@ -11,13 +11,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 /**
- * Supabase client configured for OAuth with HashRouter.
- * - detectSessionInUrl: Reads #access_token from the URL.
+ * Supabase client configured for OAuth with PKCE flow.
+ * - flowType: 'pkce' is the modern, recommended flow for SPAs.
+ * - detectSessionInUrl: Reads the auth code from the URL query parameters.
  * - persistSession: Caches the session in localStorage.
  * - autoRefreshToken: Keeps the user logged in.
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
+    flowType: 'pkce',
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
