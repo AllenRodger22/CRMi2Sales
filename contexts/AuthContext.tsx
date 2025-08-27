@@ -1,8 +1,11 @@
 import React, { createContext, useState, ReactNode } from 'react';
+import { Session } from '@supabase/supabase-js';
 import { User, Role } from '../types';
 import * as authService from '../services/auth';
 
 interface AuthContextType {
+  session: Session | null;
+  setSession: (session: Session | null) => void;
   user: User | null;
   setUser: (user: User | null) => void;
   login: (email: string, password: string) => Promise<void>;
@@ -19,6 +22,8 @@ interface AuthContextType {
 }
 
 export const AuthContext = createContext<AuthContextType>({
+  session: null,
+  setSession: () => {},
   user: null,
   setUser: () => {},
   login: async () => {},
@@ -35,6 +40,7 @@ export const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,10 +54,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (err: any) {
       console.error("Login failed", err);
       setError(err.message || 'Failed to login');
+      setLoading(false); // Set loading false on error
       throw err;
-    } finally {
-      // setLoading will be managed by the auth state listener
     }
+    // setLoading is now managed by useAuthBoot
   };
   
   const loginWithGoogle = async () => {
@@ -112,12 +118,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     await authService.logout();
+    setSession(null); // Clear session
     setUser(null);
     setIsPasswordRecovery(false);
   };
 
   return (
     <AuthContext.Provider value={{ 
+        session, setSession,
         user, setUser, 
         login, register, logout, 
         loading, setLoading, 

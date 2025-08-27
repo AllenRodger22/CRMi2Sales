@@ -1,21 +1,24 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { session, loading } = useAuth();
+  const navigate = useNavigate();
 
-  // If the authentication state is still being determined, don't render anything.
-  // The parent AppContent component will show a global loading indicator.
+  useEffect(() => {
+    if (!loading && !session) {
+      navigate('/login', { replace: true });
+    }
+  }, [loading, session, navigate]);
+
   if (loading) {
-    return null;
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <p className="text-white text-lg">Verificando sessão...</p>
+        </div>
+    );
   }
   
-  // After loading, if there's no user, redirect to login.
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  // If loading is finished and there is a user, render the children.
-  return <>{children}</>;
+  return session ? <>{children}</> : null;
 };

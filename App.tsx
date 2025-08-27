@@ -27,16 +27,10 @@ const App: React.FC = () => {
 
 const AppContent: React.FC = () => {
   useAuthBoot();
-  const { user, loading, isPasswordRecovery } = useAuth();
+  const { session, user, isPasswordRecovery } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-white text-lg">Verificando sessão...</p>
-      </div>
-    );
-  }
-
+  // The global loader is removed from here as RequireAuth handles it for protected routes.
+  // We need a check for the password recovery flow before any other rendering.
   if (isPasswordRecovery) {
     return (
       <ReactRouterDOM.Routes>
@@ -48,8 +42,8 @@ const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen text-white font-sans">
       <ReactRouterDOM.Routes>
-        <ReactRouterDOM.Route path="/login" element={!user ? <LoginPage /> : <ReactRouterDOM.Navigate to="/dashboard" replace />} />
-        <ReactRouterDOM.Route path="/register" element={!user ? <RegisterPage /> : <ReactRouterDOM.Navigate to="/dashboard" replace />} />
+        <ReactRouterDOM.Route path="/login" element={!session ? <LoginPage /> : <ReactRouterDOM.Navigate to="/dashboard" replace />} />
+        <ReactRouterDOM.Route path="/register" element={!session ? <RegisterPage /> : <ReactRouterDOM.Navigate to="/dashboard" replace />} />
         <ReactRouterDOM.Route 
           path="/dashboard/*"
           element={
@@ -60,7 +54,7 @@ const AppContent: React.FC = () => {
             </RequireAuth>
           } 
         />
-        <ReactRouterDOM.Route path="/" element={<ReactRouterDOM.Navigate to={user ? "/dashboard" : "/login"} replace />} />
+        <ReactRouterDOM.Route path="/" element={<ReactRouterDOM.Navigate to={session ? "/dashboard" : "/login"} replace />} />
         <ReactRouterDOM.Route path="*" element={<ReactRouterDOM.Navigate to="/" replace />} />
       </ReactRouterDOM.Routes>
     </div>
@@ -70,7 +64,11 @@ const AppContent: React.FC = () => {
 const DashboardRoutes: React.FC = () => {
   const { user } = useAuth();
 
-  if (!user) return null;
+  // User might still be null briefly while profile is fetched after session is confirmed.
+  if (!user) {
+    // A spinner or skeleton screen could go here
+    return <div className="p-8 text-center">Carregando perfil do usuário...</div>;
+  }
 
   const getDashboardForRole = () => {
     switch (user.role) {

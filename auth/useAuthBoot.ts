@@ -1,65 +1,77 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
-import { getAndEnsureUserProfile } from '../services/session';
-// FIX: Corrected the import path for the useAuth hook.
 import { useAuth } from '../hooks/useAuth';
-
-const clearAuthHashFragment = () => {
-    if (window.location.hash.includes('access_token')) {
-        history.replaceState(null, '', window.location.pathname + window.location.search);
-    }
-};
+import { ensureProfile } from '../utils/ensureProfile';
+import { getAndEnsureUserProfile } from '../services/session';
 
 export const useAuthBoot = () => {
-    const nav = useNavigate();
-    const { setUser, setLoading, setIsPasswordRecovery } = useAuth();
+  const navigate = useNavigate();
+  const { setSession, setUser, setLoading, setIsPasswordRecovery, isPasswordRecovery } = useAuth();
 
-    useEffect(() => {
-        setLoading(true);
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            if (session) {
-                try {
-                    const profile = await getAndEnsureUserProfile();
-                    setUser(profile);
-                } catch (e) {
-                    console.error("Failed to get profile on boot", e);
-                    setUser(null);
-                    await supabase.auth.signOut();
-                }
-            } else {
-                setUser(null);
-            }
-            clearAuthHashFragment();
-            setLoading(false);
-        });
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.debug('[auth]', event, !!session);
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'PASSWORD_RECOVERY') {
-                setIsPasswordRecovery(true);
-                setUser(null);
-                return;
-            }
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+        setSession(null);
+        setUser(null);
+        setLoading(false); // Unlock to show the update password page
+        return;
+      }
+      
+      // Reset on other events, ensuring the main app UI is shown
+      if (isPasswordRecovery) setIsPasswordRecovery(false);
+
+      if (event === 'INITIAL_SESSION') {
+        setSession(session ?? null);
+        if (session?.user) {
+          try {
+            const profile = await getAndEnsureUserProfile();
+            setUser(profile);
+          } catch(e) {
+            console.warn('Failed to get profile on initial session', e);
+            setUser(null);
+            setSession(null);
+            // Don't sign out, user might be offline but have a valid session token
+          }
+        } else {
+          setUser(null);
+        }
+        
+        if (window.location.hash.includes('access_token=')) {
+          history.replaceState(null, '', window.location.origin + window.location.pathname + window.location.search);
+        }
+
+        setLoading(false);
+      }
+
+      if (event === 'SIGNED_IN' && session?.user) {
+        setSession(session);
+        try {
+            const profile = await getAndEnsureUserProfile();
+            setUser(profile);
+            // Non-blocking call to also run the frontend upsert, ensuring data consistency.
+            ensureProfile(session.user).catch(console.warn);
             
-            setIsPasswordRecovery(false); // Reset on any other event
-            
-            if (event === 'SIGNED_IN' && session) {
-                try {
-                    const profile = await getAndEnsureUserProfile();
-                    setUser(profile);
-                    clearAuthHashFragment();
-                    nav('/dashboard', { replace: true });
-                } catch (e) {
-                    console.error("Failed to get profile on sign-in", e);
-                    setUser(null);
-                    await supabase.auth.signOut();
-                }
-            } else if (event === 'SIGNED_OUT') {
-                setUser(null);
-                nav('/login', { replace: true });
-            }
-        });
+            history.replaceState(null, '', window.location.origin + window.location.pathname + window.location.search);
+            navigate('/dashboard', { replace: true });
+        } catch(e) {
+            console.error('Sign in failed during profile fetch', e);
+            await supabase.auth.signOut(); // This will trigger the SIGNED_OUT event
+        }
+      }
 
-        return () => subscription.unsubscribe();
-    }, [nav, setUser, setLoading, setIsPasswordRecovery]);
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        navigate('/login', { replace: true });
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 };
