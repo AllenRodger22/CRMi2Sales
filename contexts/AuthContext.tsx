@@ -1,7 +1,7 @@
 import React, { createContext, useState, ReactNode } from 'react';
-import { Session } from '@supabase/supabase-js';
+import { Session, AuthError, User as AuthUser } from '@supabase/supabase-js';
 import { User, Role } from '../types';
-import * as authService from '../services/auth';
+import { supabase } from '../services/supabaseClient';
 
 interface AuthContextType {
   session: Session | null;
@@ -9,12 +9,12 @@ interface AuthContextType {
   user: User | null;
   setUser: (user: User | null) => void;
   login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
-  register: (name: string, email: string, password: string, role: Role) => Promise<{ confirmationSent: boolean }>;
-  logout: () => void;
+  register: (name: string, email: string, password: string, role: Role) => Promise<{ user: AuthUser | null; session: Session | null; error: AuthError | null; }>;
+  logout: () => Promise<void>;
   loading: boolean;
   setLoading: (loading: boolean) => void;
   error: string | null;
+  setError: (error: string | null) => void;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   isPasswordRecovery: boolean;
@@ -27,12 +27,12 @@ export const AuthContext = createContext<AuthContextType>({
   user: null,
   setUser: () => {},
   login: async () => {},
-  loginWithGoogle: async () => {},
-  register: async () => ({ confirmationSent: false }),
-  logout: () => {},
+  register: async () => ({ user: null, session: null, error: null }),
+  logout: async () => {},
   loading: true,
   setLoading: () => {},
   error: null,
+  setError: () => {},
   sendPasswordResetEmail: async () => {},
   updatePassword: async () => {},
   isPasswordRecovery: false,
@@ -50,26 +50,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     setError(null);
     try {
-      await authService.login(email, password);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      // onAuthStateChange in useAuthBoot will handle the rest
     } catch (err: any) {
       console.error("Login failed", err);
       setError(err.message || 'Failed to login');
-      setLoading(false); // Set loading false on error
+      setLoading(false);
       throw err;
-    }
-    // setLoading is now managed by useAuthBoot
-  };
-  
-  const loginWithGoogle = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-        await authService.loginWithGoogle();
-    } catch (err: any) {
-        console.error("Google login failed", err);
-        setError(err.message || 'Failed to login with Google');
-        setLoading(false);
-        throw err;
     }
   };
 
@@ -77,7 +65,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     setError(null);
     try {
-      return await authService.register({ name, email, password, role });
+      // Pass user metadata to be used by the RPC function that creates the profile
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+            role: role,
+          },
+        },
+      });
+      if (error) throw error;
+      return { user: data.user, session: data.session, error: null };
     } catch (err: any) {
        console.error("Registration failed", err);
        setError(err.message || 'Failed to register');
@@ -91,7 +91,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     setError(null);
     try {
-        await authService.sendPasswordResetEmail(email);
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            // The redirect URL must match what's configured in your Supabase project settings
+            redirectTo: window.location.origin + window.location.pathname + '#/update-password',
+        });
+        if (error) throw error;
     } catch (err: any) {
         console.error("Password reset failed", err);
         setError(err.message || 'Failed to send reset email');
@@ -105,8 +109,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
      setLoading(true);
      setError(null);
      try {
-       await authService.updatePassword(password);
-       setIsPasswordRecovery(false);
+       // This function is for logged-in users or those in a recovery flow
+       const { error } = await supabase.auth.updateUser({ password });
+       if (error) throw error;
+       setIsPasswordRecovery(false); // Success, so clear recovery state
      } catch (err: any) {
         console.error("Password update failed", err);
         setError(err.message || 'Failed to update password');
@@ -117,10 +123,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = async () => {
-    await authService.logout();
-    setSession(null); // Clear session
-    setUser(null);
-    setIsPasswordRecovery(false);
+    const { error } = await supabase.auth.signOut();
+    if(error) {
+        console.error("Logout failed", error);
+        setError(error.message);
+    }
+    // onAuthStateChange in useAuthBoot will clear session/user state
   };
 
   return (
@@ -129,7 +137,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user, setUser, 
         login, register, logout, 
         loading, setLoading, 
-        error, loginWithGoogle, 
+        error, setError, 
         sendPasswordResetEmail, updatePassword, 
         isPasswordRecovery, setIsPasswordRecovery 
     }}>

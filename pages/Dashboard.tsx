@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from '../auth';
+import { useAuth } from '../hooks/useAuth';
 import { Role } from '../types';
 
 import DashboardLayout from '../layouts/DashboardLayout';

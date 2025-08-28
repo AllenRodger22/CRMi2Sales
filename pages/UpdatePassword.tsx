@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { useAuth } from '../auth';
+import { useAuth } from '../hooks/useAuth';
 
 const UpdatePasswordPage: React.FC = () => {
     const [password, setPassword] = useState('');
@@ -27,7 +26,7 @@ const UpdatePasswordPage: React.FC = () => {
             await updatePassword(password);
             setSuccessMessage('Senha atualizada com sucesso! Você será desconectado em breve para fazer login novamente.');
             setTimeout(() => {
-                logout(); // This will redirect to login via the router logic
+                logout();
             }, 3000);
         } catch (err: any) {
             setLocalError(err.message || 'Falha ao atualizar a senha.');
@@ -35,6 +34,7 @@ const UpdatePasswordPage: React.FC = () => {
     };
 
     const inputClass = "appearance-none relative block w-full px-3 py-3 bg-white/5 border border-white/20 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text/sm";
+    const isLoading = loading;
 
     return (
         <div className="flex items-center justify-center min-h-screen p-4">
@@ -71,10 +71,10 @@ const UpdatePasswordPage: React.FC = () => {
                         />
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={isLoading}
                             className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-orange-800 disabled:cursor-not-allowed transition"
                         >
-                            {loading ? 'Atualizando...' : 'Atualizar Senha'}
+                            {isLoading ? 'Atualizando...' : 'Atualizar Senha'}
                         </button>
                         {localError && <p className="text-sm text-red-400 text-center">{localError}</p>}
                     </form>

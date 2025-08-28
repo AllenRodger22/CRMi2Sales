@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useAuth } from '../auth';
+import { useAuth } from '../hooks/useAuth';
 import { LogoutIcon } from './Icons';
 
 const Header: React.FC = () => {

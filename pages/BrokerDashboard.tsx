@@ -12,7 +12,7 @@ import FiltersBar from '../components/FiltersBar';
 import * as clientApi from '../services/clients';
 import * as analyticsApi from '../services/analytics';
 import * as interactionApi from '../services/interactions';
-import { useAuth } from '../auth';
+import { useAuth } from '../hooks/useAuth';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 

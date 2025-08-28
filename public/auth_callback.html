@@ -10,8 +10,8 @@
     const log = (...a) => (document.getElementById('log').textContent += "\n" + a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' '), console.log(...a));
 
     // ✅ Use os MESMOS valores do app (ou injete via placeholder e build)
-    const SUPABASE_URL  = 'https://pahyskuhfgequzsvafmq.supabase.co';
-    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhaHlza3VoZmdlcXV6c3ZhZm1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyODU4OTcsImV4cCI6MjA3MTg2MTg5N30.ZA9xm4JI1wXIbLsgm0Ve1vuFqyryhEE3f0HzTNvka4Q';
+    const SUPABASE_URL  = 'https://ityisebfxsvwmaophyxsn.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0eWlzZWJmeHN2d21hb3BoeHNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODU0OTIsImV4cCI6MjA3MTk2MTQ5Mn0.uP3FPdAVRTolGqdQtHtJeEMjR6fwqERg6xnWzj-BONQ';
 
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 

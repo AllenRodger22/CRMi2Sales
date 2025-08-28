@@ -1,11 +1,10 @@
 
 
-
 import React from 'react';
 // FIX: Changed to namespace import to fix module resolution issues.
 import * as ReactRouterDOM from 'react-router-dom';
 import { Client, Role, ClientStatus } from '../types';
-import { useAuth } from '../auth';
+import { useAuth } from '../hooks/useAuth';
 import Tag from './Tag';
 import { ArchiveIcon, TrashIcon } from './Icons';
 
@@ -53,45 +52,42 @@ const ClientTable: React.FC<ClientTableProps> = ({ clients, loading, onUpdateCli
                 <thead className="border-b border-white/20">
                     <tr>
                         <th className="p-4 font-semibold">Nome</th>
-                        <th className="p-4 font-semibold hidden md:table-cell">Número</th>
-                        <th className="p-4 font-semibold hidden lg:table-cell">Origem</th>
+                        <th className="p-4 font-semibold">Número</th>
+                        <th className="p-4 font-semibold">Origem</th>
                         <th className="p-4 font-semibold">Status</th>
                         <th className="p-4 font-semibold text-right">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {clients.map((client) => (
-                        <tr 
-                            key={client.id} 
-                            className="border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer"
-                            onClick={(e) => handleRowClick(e, client.id)}
-                        >
+                    {clients.map(client => (
+                        <tr key={client.id} onClick={(e) => handleRowClick(e, client.id)} className="border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer">
                             <td className="p-4 font-medium text-white">{client.name}</td>
-                            <td className="p-4 hidden md:table-cell">{client.phone}</td>
-                            <td className="p-4 hidden lg:table-cell">{client.source}</td>
-                            <td className="p-4">
-                                <Tag status={client.status} />
-                            </td>
-                            <td className="p-4 text-right">
-                                <div className="flex justify-end items-center gap-2">
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); client.status !== ClientStatus.ARCHIVED && onStatusChange(client.id, client.status, ClientStatus.ARCHIVED); }}
-                                        className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        title={client.status !== ClientStatus.ARCHIVED ? "Arquivar Cliente" : "Cliente já arquivado"}
-                                        disabled={client.status === ClientStatus.ARCHIVED}
+                            <td className="p-4">{client.phone}</td>
+                            <td className="p-4">{client.source}</td>
+                            <td className="p-4"><Tag status={client.status} /></td>
+                            <td className="p-4 text-right space-x-2">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onStatusChange(client.id, client.status, ClientStatus.ARCHIVED);
+                                    }}
+                                    className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                                    title="Arquivar Cliente"
+                                >
+                                    <ArchiveIcon className="w-5 h-5" />
+                                </button>
+                                {user?.role === Role.ADMIN && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onDeleteClient(client.id);
+                                        }}
+                                        className="p-2 text-red-400 hover:text-red-300 rounded-full hover:bg-white/10 transition-colors"
+                                        title="Excluir Cliente"
                                     >
-                                        <ArchiveIcon className="w-5 h-5" />
+                                        <TrashIcon className="w-5 h-5" />
                                     </button>
-                                    {user?.role === Role.ADMIN && (
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); onDeleteClient(client.id); }}
-                                            className="p-2 text-gray-400 hover:text-red-400 hover:bg-white/10 rounded-full transition-colors"
-                                            title="Excluir Cliente"
-                                        >
-                                            <TrashIcon className="w-5 h-5" />
-                                        </button>
-                                    )}
-                                </div>
+                                )}
                             </td>
                         </tr>
                     ))}
@@ -101,5 +97,5 @@ const ClientTable: React.FC<ClientTableProps> = ({ clients, loading, onUpdateCli
     );
 };
 
-// FIX: Added default export to match project conventions and fix import errors.
+// FIX: Added default export to resolve module import error in BrokerDashboard.
 export default ClientTable;

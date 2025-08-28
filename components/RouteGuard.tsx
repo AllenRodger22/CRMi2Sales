@@ -1,14 +1,26 @@
-import { useEffect } from 'react';
+import React from 'react';
 import { useAuth } from '../auth';
+import { useNavigate } from 'react-router-dom';
 
-export default function RouteGuard({ children }: { children: JSX.Element }) {
+const RouteGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state } = useAuth();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (state === 'guest') window.location.hash = '#/login';
-  }, [state]);
+  React.useEffect(() => {
+    if (state === 'guest') {
+      navigate('/login', { replace: true });
+    }
+  }, [state, navigate]);
 
-  if (state === 'loading') return <div>Carregando sessão…</div>;
-  if (state === 'guest') return null;
-  return children;
-}
+  if (state === 'loading') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-white text-lg">Carregando sessão...</p>
+      </div>
+    );
+  }
+
+  return state === 'authed' ? <>{children}</> : null;
+};
+
+export default RouteGuard;

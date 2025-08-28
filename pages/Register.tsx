@@ -1,10 +1,6 @@
-
-
-
 import React, { useState } from 'react';
-// FIX: Changed to namespace import to fix module resolution issues.
-import * as ReactRouterDOM from 'react-router-dom';
-import { useAuth } from '../auth';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import { Role } from '../types';
 
 const RegisterPage: React.FC = () => {
@@ -12,16 +8,16 @@ const RegisterPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState<Role>(Role.BROKER);
-    const { register, loading } = useAuth();
+    const { register, loading, setError } = useAuth();
     const [localError, setLocalError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    // FIX: Used namespace import.
-    const navigate = ReactRouterDOM.useNavigate();
+    const navigate = useNavigate();
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setLocalError(null);
         setSuccessMessage(null);
+        setError(null); // Clear global error state
 
         if (!name || !email || !password || !role) {
             setLocalError('Todos os campos são obrigatórios.');
@@ -29,19 +25,20 @@ const RegisterPage: React.FC = () => {
         }
 
         try {
-            const { confirmationSent } = await register(name, email, password, role);
+            const { session } = await register(name, email, password, role);
 
-            if (confirmationSent) {
+            // If session is null, email confirmation is required by Supabase.
+            if (!session) {
                 setSuccessMessage('Conta criada! Por favor, verifique seu e-mail para confirmar sua conta antes de fazer login.');
-                // Do not redirect automatically. The user must take action.
             } else {
+                // This case happens if auto-confirm email is on in Supabase settings.
                 setSuccessMessage('Conta criada com sucesso! Redirecionando para o login...');
                 setTimeout(() => {
                     navigate('/login');
-                }, 2000);
+                }, 3000);
             }
         } catch (err: any) {
-             if (err.message && err.message.includes('User already registered')) {
+             if (err.message && err.message.toLowerCase().includes('user already registered')) {
                 setLocalError('Um usuário com este e-mail já existe.');
             } else {
                 setLocalError(err.message || 'Falha ao registrar.');
@@ -50,6 +47,7 @@ const RegisterPage: React.FC = () => {
     };
 
     const inputClass = "appearance-none relative block w-full px-3 py-3 bg-white/5 border border-white/20 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text/sm";
+    const isLoading = loading;
 
     return (
         <div className="flex items-center justify-center min-h-screen p-4">
@@ -111,20 +109,19 @@ const RegisterPage: React.FC = () => {
 
                     <button
                         type="submit"
-                        disabled={loading || !!successMessage}
+                        disabled={isLoading || !!successMessage}
                         className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-orange-800 disabled:cursor-not-allowed transition"
                     >
-                        {loading ? 'Registrando...' : 'Registrar'}
+                        {isLoading ? 'Registrando...' : 'Registrar'}
                     </button>
                     {localError && <p className="text-sm text-red-400 text-center">{localError}</p>}
                     {successMessage && <p className="text-sm text-green-400 text-center">{successMessage}</p>}
                 </form>
                  <p className="mt-4 text-center text-sm text-gray-400">
                     Já tem uma conta?{' '}
-                    {/* FIX: Used namespace import. */}
-                    <ReactRouterDOM.Link to="/login" className="font-medium text-orange-400 hover:text-orange-300">
+                    <Link to="/login" className="font-medium text-orange-400 hover:text-orange-300">
                         Faça o login
-                    </ReactRouterDOM.Link>
+                    </Link>
                 </p>
             </div>
         </div>

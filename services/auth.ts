@@ -1,80 +1,34 @@
-// services/auth.ts
-import { supabase } from './supabaseClient';
-import { Role } from '../types';
+import { apiClient } from './apiClient';
+import { Role, User } from '../types';
 
-/**
- * Logs in a user using email and password.
- */
-export async function login(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  return data;
+interface LoginResponse {
+  token: string;
+  user: User;
 }
 
-/**
- * Signs in the user using Google OAuth with the PKCE redirect flow.
- * It redirects to a dedicated callback page to handle the code exchange.
- */
-export async function loginWithGoogle() {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${window.location.origin}/auth_callback.html`,
-      queryParams: { prompt: 'select_account' }
-    }
-  });
-  if (error) throw error;
-}
+export const login = (email: string, password: string) => {
+  return apiClient.post<LoginResponse>('/auth/login', { email, password });
+};
 
-/**
- * Registers a new user in Supabase Auth.
- * The user's profile in the `profiles` table will be created automatically
- * by the `ensure_profile` RPC function upon the first login, which happens
- * immediately after sign-up if email confirmation is disabled.
- */
-export async function register(
+export const register = (
     { name, email, password, role }: { name: string; email: string; password: string; role: Role }
-) {
-    const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-            // Pass user metadata to be used by the `ensure_profile` RPC function
-            data: {
-                name,
-                role,
-            }
-        }
-    });
+) => {
+    return apiClient.post<{ confirmationSent: boolean }>('/auth/register', { name, email, password, role });
+};
 
-    if (error) throw error;
-    if (!data.user) throw new Error("Registration failed: No user object returned.");
+export const sendPasswordResetEmail = (email: string) => {
+    return apiClient.post('/auth/forgot-password', { email });
+};
 
-    // If `data.session` is null, it means email confirmation is required.
-    const confirmationSent = data.session === null;
+export const updatePassword = (password: string) => {
+    return apiClient.put('/auth/update-password', { password });
+};
 
-    return { user: data.user, confirmationSent };
-}
+export const getMe = () => {
+    return apiClient.get<User>('/auth/me');
+};
 
-/**
- * Sends a password reset email to the user.
- * The redirect URL is now managed solely by the 'Site URL' setting in the Supabase dashboard.
- */
-export async function sendPasswordResetEmail(email: string) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    if (error) throw error;
-}
-
-/**
- * Updates the current user's password. This is used after a password recovery flow.
- */
-export async function updatePassword(newPassword: string) {
-    const { data, error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) throw error;
-    return data;
-}
-
-/**
- * Logs out the current user.
- */
-export const logout = () => supabase.auth.signOut();
+// Opcional: se o backend tiver um endpoint de logout para invalidar o token
+// export const logout = () => {
+//     return apiClient.post('/auth/logout', {});
+// };

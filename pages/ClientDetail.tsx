@@ -1,8 +1,9 @@
 
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth';
+import { useAuth } from '../hooks/useAuth';
 import { ClientStatus, InteractionType, Role, Client, FollowUpState } from '../types';
 import TimelineItem from '../components/TimelineItem';
 import Tag from '../components/Tag';

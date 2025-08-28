@@ -1,35 +1,21 @@
-// FIX: Replaced the entire file with a unified and feature-complete auth provider.
-// This new provider merges the logic from 'contexts/AuthContext.tsx', 'hooks/useAuth.ts', 
-// and 'auth/useAuthBoot.ts' to provide a single source of truth for authentication 
-// that satisfies all component requirements.
-
-import React, { createContext, useState, ReactNode, useContext, useEffect } from 'react';
-import { Session } from '@supabase/supabase-js';
+import React, { createContext, useState, ReactNode, useContext, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Role } from './types';
 import * as authService from './services/auth';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from './services/supabaseClient';
-import { getAndEnsureUserProfile } from './services/session';
+import { ApiError } from './services/apiClient';
 
 type AuthState = 'loading' | 'authed' | 'guest';
 
 interface AuthContextType {
-  session: Session | null;
-  setSession: (session: Session | null) => void;
+  token: string | null;
   user: User | null;
-  setUser: (user: User | null) => void;
   login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
   register: (name: string, email: string, password: string, role: Role) => Promise<{ confirmationSent: boolean }>;
   logout: () => void;
-  loading: boolean;
-  setLoading: (loading: boolean) => void;
   error: string | null;
+  state: AuthState;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
-  isPasswordRecovery: boolean;
-  setIsPasswordRecovery: (isRecovery: boolean) => void;
-  state: AuthState; 
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,164 +29,130 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('authToken'));
+  const [state, setState] = useState<AuthState>('loading');
   const [error, setError] = useState<string | null>(null);
-  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.debug('[auth]', event, !!session);
-
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsPasswordRecovery(true);
-        setSession(null);
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-      
-      if (isPasswordRecovery && event !== 'PASSWORD_RECOVERY') {
-        setIsPasswordRecovery(false);
-      }
-
-      if (event === 'INITIAL_SESSION') {
-        setSession(session ?? null);
-        if (session?.user) {
-          try {
-            const profile = await getAndEnsureUserProfile();
-            setUser(profile);
-          } catch(e) {
-            console.warn('Failed to get profile on initial session', e);
-            setUser(null);
-          }
-        } else {
-          setUser(null);
-        }
-        
-        if (window.location.hash.includes('access_token=')) {
-          history.replaceState(null, '', window.location.origin + window.location.pathname + window.location.search);
-        }
-
-        setLoading(false);
-      } else if (event === 'SIGNED_IN' && session?.user) {
-        setSession(session);
-        setLoading(true);
-        try {
-            const profile = await getAndEnsureUserProfile();
-            setUser(profile);
-            history.replaceState(null, '', window.location.origin + window.location.pathname + window.location.search);
-            navigate('/dashboard', { replace: true });
-        } catch(e) {
-            console.error('Sign in failed during profile fetch', e);
-            setUser(null);
-            navigate('/dashboard', { replace: true });
-        } finally {
-            setLoading(false);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        setLoading(false);
-        navigate('/login', { replace: true });
-      } else if (session) {
-        setSession(session);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [isPasswordRecovery, navigate]);
-
-  const login = async (email: string, password: string) => {
-    setLoading(true);
+  const handleAuthSuccess = (newToken: string, newUser: User) => {
     setError(null);
-    try {
-      await authService.login(email, password);
-    } catch (err: any) {
-      console.error("Login failed", err);
-      setError(err.message || 'Failed to login');
-      setLoading(false);
-      throw err;
-    }
+    localStorage.setItem('authToken', newToken);
+    setToken(newToken);
+    setUser(newUser);
+    setState('authed');
+    navigate('/dashboard', { replace: true });
   };
   
-  const loginWithGoogle = async () => {
-    setLoading(true);
+  const handleLogout = useCallback(() => {
+    setError(null);
+    localStorage.removeItem('authToken');
+    setToken(null);
+    setUser(null);
+    setState('guest');
+    navigate('/login', { replace: true });
+  }, [navigate]);
+
+  useEffect(() => {
+    const validateToken = async () => {
+      if (token) {
+        try {
+          const currentUser = await authService.getMe();
+          setUser(currentUser);
+          setState('authed');
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 401) {
+             console.log('Sessão inválida, fazendo logout.');
+             handleLogout();
+          } else {
+            console.error('Falha ao validar sessão:', err);
+            setError('Não foi possível verificar sua sessão.');
+            handleLogout(); // Logout on any other error during validation
+          }
+        }
+      } else {
+        setState('guest');
+      }
+    };
+    validateToken();
+  }, [token, handleLogout]);
+
+  const login = async (email: string, password: string) => {
+    setState('loading');
     setError(null);
     try {
-        await authService.loginWithGoogle();
+      const { token: newToken, user: newUser } = await authService.login(email, password);
+      handleAuthSuccess(newToken, newUser);
     } catch (err: any) {
-        console.error("Google login failed", err);
-        setError(err.message || 'Failed to login with Google');
-        setLoading(false);
-        throw err;
+      console.error("Login failed", err);
+      const errorMessage = err instanceof ApiError ? err.message : 'Falha ao fazer login';
+      setError(errorMessage);
+      setState('guest');
+      throw err;
     }
   };
 
   const register = async (name: string, email: string, password: string, role: Role) => {
-    setLoading(true);
+    setState('loading');
     setError(null);
     try {
       return await authService.register({ name, email, password, role });
     } catch (err: any) {
        console.error("Registration failed", err);
-       setError(err.message || 'Failed to register');
+       setError(err.message || 'Falha ao registrar.');
+       setState('guest');
        throw err;
     } finally {
-        setLoading(false);
+        if (state === 'loading') setState('guest'); // Ensure state is not stuck on loading
     }
   };
-  
+
   const sendPasswordResetEmail = async (email: string) => {
-    setLoading(true);
+    setState('loading');
     setError(null);
     try {
-        await authService.sendPasswordResetEmail(email);
+      await authService.sendPasswordResetEmail(email);
     } catch (err: any) {
-        console.error("Password reset failed", err);
-        setError(err.message || 'Failed to send reset email');
-        throw err;
+      console.error("Password reset failed", err);
+      setError(err.message || 'Falha ao enviar email de redefinição.');
+      throw err;
     } finally {
-        setLoading(false);
+      setState('guest');
     }
   };
   
   const updatePassword = async (password: string) => {
-     setLoading(true);
+     setState('loading');
      setError(null);
      try {
        await authService.updatePassword(password);
-       setIsPasswordRecovery(false);
+       // The backend should handle invalidating other sessions if necessary.
      } catch (err: any) {
         console.error("Password update failed", err);
-        setError(err.message || 'Failed to update password');
+        setError(err.message || 'Falha ao atualizar a senha.');
         throw err;
      } finally {
-         setLoading(false);
+         setState('authed');
      }
   };
 
-  const logout = async () => {
-    await authService.logout();
-    setSession(null);
-    setUser(null);
-    setIsPasswordRecovery(false);
+  const logout = () => {
+    // Optionally call a backend endpoint to invalidate the token
+    // authService.logout(); 
+    handleLogout();
   };
 
-  const state: AuthState = loading ? 'loading' : session ? 'authed' : 'guest';
-
-  const value: AuthContextType = { 
-        session, setSession,
-        user, setUser, 
-        login, register, logout, 
-        loading, setLoading, 
-        error, loginWithGoogle, 
-        sendPasswordResetEmail, updatePassword, 
-        isPasswordRecovery, setIsPasswordRecovery, 
-        state
-    };
+  const value: AuthContextType = {
+    token,
+    user,
+    login,
+    register,
+    logout,
+    error,
+    state,
+    sendPasswordResetEmail,
+    updatePassword,
+  };
 
   return (
     <AuthContext.Provider value={value}>

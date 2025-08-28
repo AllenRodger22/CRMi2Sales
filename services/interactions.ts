@@ -1,34 +1,19 @@
-// services/interactions.ts
-import { supabase } from './supabaseClient';
+import { apiClient } from './apiClient';
 import { Interaction } from '../types';
-import { snakeToCamel, convertObjectKeys } from '../utils/helpers';
 
-/**
- * Creates an interaction and handles status changes atomically via an RPC call.
- */
 export async function createInteraction(
     params: { clientId: string; userId: string; type: string; observation?: string; explicitNext?: string | null; }
 ): Promise<any> {
-    const { data, error } = await supabase.rpc('rpc_create_interaction', {
-        p_client: params.clientId,
-        p_user: params.userId,
-        p_type: params.type,
-        p_observation: params.observation ?? '',
-        p_explicit_next: params.explicitNext ?? null
-    });
-    if (error) throw error;
-    return data;
+    // userId is now inferred by the backend from the token, so we don't need to send it.
+    const { userId, ...payload } = params;
+    return apiClient.post('/interactions', payload);
 }
 
-/**
- * Lists all interactions for a given client, ordered by most recent.
- */
 export async function listInteractionsByClient(clientId: string): Promise<Interaction[]> {
-  const { data, error } = await supabase
-    .from('interactions')
-    .select('*')
-    .eq('client_id', clientId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return convertObjectKeys(data, snakeToCamel);
+  // Esta função não é mais necessária, pois o endpoint `GET /clients/:clientId`
+  // já retorna as interações. Ela é mantida aqui para referência, caso seja
+  // necessário um endpoint que busque apenas as interações no futuro.
+  console.warn("listInteractionsByClient is deprecated. Interactions are fetched with the client.");
+  const client = await apiClient.get<{ interactions: Interaction[] }>(`/clients/${clientId}`);
+  return client.interactions || [];
 }

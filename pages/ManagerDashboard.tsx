@@ -7,7 +7,7 @@ import FiltersBar from '../components/FiltersBar';
 import Tabs from '../components/Tabs';
 import { ProductivityData, FunnelAnalyticsData } from '../types';
 import * as analyticsApi from '../services/analytics';
-import { useAuth } from '../auth';
+import { useAuth } from '../hooks/useAuth';
 import DateRangePickerModal from '../components/DateRangePickerModal';
 
 const formatCurrency = (value: number) => {
