@@ -1,5 +1,6 @@
 import { supabase } from '../services/supabaseClient';
-import { User as AuthUser } from '@supabase/supabase-js';
+// FIX: Use `import type` for Supabase types to fix module resolution errors.
+import type { User as AuthUser } from '@supabase/supabase-js';
 
 /**
  * Ensures a profile exists in the public.users table for the authenticated user.

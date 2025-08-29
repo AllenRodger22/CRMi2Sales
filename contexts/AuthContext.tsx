@@ -1,5 +1,6 @@
 import React, { createContext, useState, ReactNode } from 'react';
-import { Session, AuthError, User as AuthUser } from '@supabase/supabase-js';
+// FIX: Use `import type` for Supabase types to fix module resolution errors.
+import type { Session, AuthError, User as AuthUser } from '@supabase/supabase-js';
 import { User, Role } from '../types';
 import { supabase } from '../services/supabaseClient';
 
